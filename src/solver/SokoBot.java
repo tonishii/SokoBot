@@ -23,7 +23,26 @@ public class SokoBot {
         }
     }
     return goalItemsData;
-}
+  }
+
+  /**
+   * isEnd returns true if the game has already reached goal state
+   * CURRENTLY ONLY CHECKS IF ALL THE CRATES ARE IN THE CORRECT POSITION BUT
+   * DOES NOT CONSIDER CHARACTERS POSITION
+   * @param width
+   * @param height
+   * @param itemsData
+   * @return
+   */
+  private boolean isEnd(int width, int height, char[][] itemsData) {
+    for (int i = 0; i < height; i++) {
+      for (int j = 0; j < width; j++) {
+          if (itemsData[i][j] != this.goalItemsData[i][j])
+          return false;
+      }
+    }
+    return true;
+  }
   /**
    * eval returns the value of a node based on its contents??
    * @return
