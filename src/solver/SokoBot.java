@@ -95,9 +95,41 @@ public class SokoBot {
   //     }
   //   }
   // }
+  private boolean[] findLegalPushes(Coordinate box, Board board) {
+      boolean[] adjacent = new boolean[4];
+      // up
+      if (board.mapData[box.y - 1][box.x] != BoardValues.WALL.value &&
+          board.mapData[box.y - 1][box.x] != BoardValues.CRATE.value) {
+          adjacent[0] = true;
+      }
+      // down
+      if (board.mapData[box.y][box.x + 1] != BoardValues.WALL.value &&
+          board.mapData[box.y][box.x + 1] != BoardValues.CRATE.value) {
+        adjacent[1] = true;
+      }
+      // left
+      if (board.mapData[box.y - 1][box.x - 1] != BoardValues.WALL.value &&
+          board.mapData[box.y - 1][box.x - 1] != BoardValues.CRATE.value) {
+        adjacent[2] = true;
+      }
+      // right
+      if (board.mapData[box.y][box.x + 1] != BoardValues.WALL.value &&
+          board.mapData[box.y][box.x + 1] != BoardValues.CRATE.value) {
+        adjacent[3] = true;
+      }
+
+      return adjacent;
+  }
 
   private ArrayList<State> createLegalPush(State s) {
+    ArrayList<State> legalPushes = new ArrayList<>();
 
+    for (Coordinate box : s.box_pos_list) {
+      for (boolean legalDir : findLegalPushes(box, s.board)) {
+        if (legalDir == true)
+          legalPushes.add(new State())
+      }
+    }
   }
 
   public String solveSokobanPuzzle(int width, int height, char[][] mapData, char[][] itemsData) {
