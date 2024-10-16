@@ -1,6 +1,8 @@
 package solver;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.Queue;
 import java.util.Stack;
 
 class Coordinate {
@@ -147,6 +149,36 @@ public class SokoBot {
     }
     return legalPushes;
   }
+  // FOR CHECKING I DID THIS AT 1AM
+  // bfs, returns bool[][] of tiles the player can move to
+  // false = unreachable, true = reachable
+  // btw idk how to access length and width of the mapdata
+  private boolean[][] playerReachablePos(Board b, Coordinate player_pos, int length, int width)
+  {
+    Queue<Coordinate> queue = new LinkedList<>();
+    boolean[][] reachable = new boolean[length][width];
+    reachable[player_pos.y][player_pos.x] = true;
+
+    queue.add(new Coordinate(player_pos.x, player_pos.y-1));
+    queue.add(new Coordinate(player_pos.x+1, player_pos.y-1));
+    queue.add(new Coordinate(player_pos.x, player_pos.y+1));
+    queue.add(new Coordinate(player_pos.x-1, player_pos.y));
+
+    while(!queue.isEmpty())
+    {
+      Coordinate next = queue.remove();
+      if(isSquareFree(b, next.y, next.x))
+      {
+        reachable[next.y][next.x] = true;
+        queue.add(new Coordinate(next.x, next.y-1));
+        queue.add(new Coordinate(next.x+1, next.y-1));
+        queue.add(new Coordinate(next.x, next.y+1));
+        queue.add(new Coordinate(next.x-1, next.y));
+      }
+    }
+
+    return reachable;
+  }
 
   public String solveSokobanPuzzle(int width, int height, char[][] mapData, char[][] itemsData) {
     // STEPS TO SOLVING THE SOKOBAN PUZZLE
@@ -176,8 +208,7 @@ public class SokoBot {
       for (int j = 0; j < width; j++) {
         if (mapData[i][j] == BoardValues.CRATE.value)
           crate_pos_list.add(new Coordinate(i, j));
-      }
-    }
+      }    }
     this.initState = new State(crate_pos_list, initBoard, null);
 
     // map out all the targets for future reference???????????????? JUST IN CASE?
