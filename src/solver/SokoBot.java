@@ -1,28 +1,66 @@
 package solver;
 
+import java.util.ArrayList;
 import reader.MapData;
 
-public class SokoBot {
-  private StateNode treeRoot;
-  private char[][] goalItemsData;
+class Coordinate {
+  public int x,
+             y;
 
-  /**
-   * createGoalItemsData returns the goal state given the set of game data
-   * @param width
-   * @param height
-   * @param mapData
-   * @param itemsData
-   * @return
-   */
-  private char[][] createGoalItemsData(int width, int height, char[][] mapData, char[][] itemsData) {
-    char[][] goalItemsData = new char[height][];
+  public Coordinate(int x, int y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  public Coordinate(Coordinate pos, char dir) {
+    this.x = x;
+    this.y = y;
+
+    if (dir == 'l')
+      this.x--;
+    else if (dir == 'r')
+      this.x++;
+    else if (dir == 'f')
+      this.y--;
+    else if (dir == 'b')
+      this.y++;
+  }
+}
+class Board {
+  public char[][] mapData;
+  public char[][] itemData;
+
+  public Board(char[][] mapData, char[][] itemData) {
+    this.mapData = mapData;
+    this.itemData = itemData;
+  }
+}
+
+// Push is an action which indicates which box is pushed and which direction
+class Push {
+  public Integer box_index;
+  public char dir;
+
+  public Push(Integer box_index, char dir) {
+    this.box_index = box_index;
+    this.dir = dir;
+  }
+}
+
+public class SokoBot {
+  private Board initS;
+  private Coordinate start_player_pos;
+
+  private ArrayList<Coordinate> targets;
+
+  private Coordinate searchValue(int height, int width, char[][] board, BoardValues value) {
     for (int i = 0; i < height; i++) {
-        goalItemsData[i] = new char[width];
-        for (int j = 0; j < width; j++) {
-            goalItemsData[i][j] = (mapData[i][j] == '.' && itemsData[i][j] == '$') ? '$' : ' ';
-        }
+      for (int j = 0; j < width; j++) {
+        if (board[i][j] == value.value)
+          return new Coordinate(i, j);
+      }
     }
-    return goalItemsData;
+    return null;
   }
 
   /**
@@ -34,45 +72,49 @@ public class SokoBot {
    * @param itemsData
    * @return
    */
-  private boolean isEnd(int width, int height, char[][] itemsData) {
-    for (int i = 0; i < height; i++) {
-      for (int j = 0; j < width; j++) {
-          if (itemsData[i][j] != this.goalItemsData[i][j])
-          return false;
-      }
+  private boolean isEnd(State s) {
+    for (Coordinate boxes : s.box_pos_list) {
+        if (this.board.mapData[boxes.y][boxes.x] != BoardValues.TARGET.value)
+        return false;
     }
     return true;
   }
-  /**
-   * eval returns the value of a node based on its contents??
-   * @return
-   */
-  private int eval() {
-    return 0;
+
+  private void move(State s, Push push) {
+    // get the current index of the starting/origin pos of the box
+    Coordinate start_box = s.box_pos_list.get(push.box_index);
+
+    Coordinate dest_box = new Coordinate(start_box, push.dir);
   }
 
-  /**
-   * createGameSpace creates the game tree given the set of game data??
-   * @param width
-   * @param height
-   * @param mapData
-   * @param itemsData
-   */
-  private void createGameSpace(int width, int height, char[][] mapData, char[][] itemsData) {
-    MapData initState = new MapData();
-    initState.columns = width;
-    initState.rows = height;
-    initState.tiles = mapData;
+  // private int[][] h(State s, int height, int width) {
+  //   Board board = s.board;
+  //   for (int i = 0; i < height; i++) {
+  //     for (int j = 0; j < width; i++) {
 
-    // TEMPORARY
-    this.goalItemsData = createGoalItemsData(width, height, mapData, itemsData);
-    this.treeRoot = new StateNode(initState, eval());
+  //     }
+  //   }
+  // }
+
+  private ArrayList<State> createLegalPush(State s) {
+
   }
 
   public String solveSokobanPuzzle(int width, int height, char[][] mapData, char[][] itemsData) {
     // 1. Map out all the states
     // 2. Prune subtrees or nodes that are redundant
     // 3. Search for the solution
+
+    this.board = new Board(mapData, itemsData);
+    this.start_player_pos = searchValue(height, width, itemsData, BoardValues.PLAYER);
+
+    for (int i = 0; i < height; i++) {
+      for (int j = 0; j < width; j++) {
+        if (mapData[i][j] == BoardValues.TARGET.value)
+          this.targets.add(new Coordinate(i, j));
+      }
+    }
+
 
     return "lrlrlrlrlrlrlrlrlrlrlrlrlrlrlr";
   }
