@@ -149,6 +149,24 @@ public class SokoBot {
   }
 
   public String solveSokobanPuzzle(int width, int height, char[][] mapData, char[][] itemsData) {
+    // STEPS TO SOLVING THE SOKOBAN PUZZLE
+    // 1. Initiate SOKOBOT with the initial state
+
+    // 2. Search the state tree in a DFS manner meaning,
+    // We push the initial state to the DFS stack
+    // THEN its children will be pushed to the DFS stack
+
+    // For context, its children are all the resulting state AFTER doing a legal push
+    // We do this for every state not only for the initial state after popping the top from the stack
+
+    // DFS only ends when either we find the solution using the isEnd function
+    // or the stack will have no more states to check (IMPOSSIBLE!!)
+    // After getting the list of pushes in order to solve the puzzle, we...
+
+    // 3. Player/character will do the pushes in the order given by the list
+    //    WHILE remembering the steps we took to get there (STRINGBUILDER???)
+    // 4. THEN we return the steps we took to solve the puzzle
+
     // initialize the initial board, state, and starting player position
     this.initBoard = new Board(mapData, itemsData);
     this.start_player_pos = searchValue(height, width, itemsData, BoardValues.PLAYER);
