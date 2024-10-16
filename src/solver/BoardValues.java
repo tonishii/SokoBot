@@ -2,7 +2,7 @@ package solver;
 
 enum BoardValues {
     CRATE('$'),
-    SPACE(' '),
+    EMPTY(' '),
     TARGET('.'),
     PLAYER('@'),
     WALL('#');
