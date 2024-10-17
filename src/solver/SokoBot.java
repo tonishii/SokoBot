@@ -40,13 +40,10 @@ class Push {
 
     if (dir == 'u')
       y--;
-
     else if (dir == 'r')
       x++;
-
     else if (dir == 'd')
       y++;
-
     else if (dir == 'l')
       y--;
 
@@ -131,8 +128,8 @@ public class SokoBot {
     return adjacent;
   }
 
-  private ArrayList<State> createLegalPush(State s) {
-    ArrayList<State> legalPushes = new ArrayList<>();
+  private ArrayList<Push> createLegalPushes(State s) {
+    ArrayList<Push> legalPushes = new ArrayList<>();
 
     // Go through every box's positions
     for (Coordinate box : s.crate_pos_list) {
@@ -143,7 +140,7 @@ public class SokoBot {
         // Iterate over the directions {0 = up, 1 = right, 2 = down, 3 = left}
         if (legalDir[i] == true) {
           char dir = (i == 0) ? 'u' : (i == 1) ? 'r' : (i == 2) ? 'd' : 'l';
-          legalPushes.add(move(s, new Push(s.crate_pos_list.indexOf(box), dir)));
+          legalPushes.add(new Push(s.crate_pos_list.indexOf(box), dir));
         }
       }
     }
@@ -160,7 +157,7 @@ public class SokoBot {
     reachable[player_pos.y][player_pos.x] = true;
 
     queue.add(new Coordinate(player_pos.x, player_pos.y-1));
-    queue.add(new Coordinate(player_pos.x+1, player_pos.y-1));
+    queue.add(new Coordinate(player_pos.x+1, player_pos.y));
     queue.add(new Coordinate(player_pos.x, player_pos.y+1));
     queue.add(new Coordinate(player_pos.x-1, player_pos.y));
 
@@ -171,13 +168,53 @@ public class SokoBot {
       {
         reachable[next.y][next.x] = true;
         queue.add(new Coordinate(next.x, next.y-1));
-        queue.add(new Coordinate(next.x+1, next.y-1));
+        queue.add(new Coordinate(next.x+1, next.y));
         queue.add(new Coordinate(next.x, next.y+1));
         queue.add(new Coordinate(next.x-1, next.y));
       }
     }
 
     return reachable;
+  }
+
+  private void DFS(ArrayList<Push> pushList) {
+    // Create the search tree in a DFS manner
+    Stack<State> stateStack = new Stack<>();
+
+    if (isEnd(initState))
+      return;
+
+    stateStack.push(initState);
+
+    while (!stateStack.empty()) {
+      State currState = stateStack.pop();
+      pushList.add(currState.prevPush);
+
+      if (isEnd(currState))
+        break;
+
+      ArrayList<Push> legalPushes = createLegalPushes(currState);
+      if (legalPushes.isEmpty()) {
+        // means we have reached a terminal node that isn't a goal state
+        // this means we have to undo a push ?? not sure yet
+      }
+
+      else {
+        for (Push legalPush : legalPushes) {
+          State resultState = move(currState, legalPush);
+          stateStack.push(resultState);
+        }
+      }
+    }
+
+    if (pushList.isEmpty()) {
+      System.out.println("No pushes");
+      return;
+    }
+
+    for (Push push : pushList) {
+       System.out.println("Push Index: " + push.box_index + ", Direction: " + push.dir);
+    }
   }
 
   public String solveSokobanPuzzle(int width, int height, char[][] mapData, char[][] itemsData) {
@@ -208,45 +245,19 @@ public class SokoBot {
       for (int j = 0; j < width; j++) {
         if (mapData[i][j] == BoardValues.CRATE.value)
           crate_pos_list.add(new Coordinate(i, j));
-      }    }
+
+        // map out all the targets for future reference???????????????? JUST IN CASE?
+        if (mapData[i][j] == BoardValues.TARGET.value)
+        this.targets.add(new Coordinate(i, j));
+      }
+    }
     this.initState = new State(crate_pos_list, initBoard, null);
 
-    // map out all the targets for future reference???????????????? JUST IN CASE?
-    for (int i = 0; i < height; i++) {
-      for (int j = 0; j < width; j++) {
-        if (mapData[i][j] == BoardValues.TARGET.value)
-          this.targets.add(new Coordinate(i, j));
-      }
-    }
-
-    // Create the search tree in a DFS manner
-    Stack<State> stateStack = new Stack<>();
     ArrayList<Push> pushList = new ArrayList<>();
+    DFS(pushList);
 
-    if (isEnd(initState))
-      return "";
+    boolean[][] reach = playerReachablePos(initBoard, start_player_pos, height, width);
 
-    stateStack.push(initState);
-
-    while (!stateStack.empty()) {
-      State currState = stateStack.pop();
-      pushList.add(currState.prevPush);
-
-      if (isEnd(currState))
-        break;
-
-      for (State legalPushes : createLegalPush(currState)) {
-        stateStack.push(legalPushes);
-      }
-    }
-
-    if (pushList.size() == 0) {
-      System.out.println("No pushes");
-      return "";
-    }
-    for (Push push : pushList) {
-       System.out.println("Push Index: " + push.box_index + ", Direction: " + push.dir);
-    }
     return "";
   }
 
