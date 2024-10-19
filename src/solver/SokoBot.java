@@ -4,6 +4,11 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.Queue;
 import java.util.Stack;
+import java.util.HashMap;
+import java.util.Objects;
+
+import reader.FileReader;
+import reader.MapData;
 
 class Coordinate {
   public int x, y;
@@ -11,6 +16,24 @@ class Coordinate {
   public Coordinate(int x, int y) {
     this.x = x;
     this.y = y;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    Coordinate that = (Coordinate) o;
+    return x == that.x && y == that.y;
+  }
+
+  @Override
+    public int hashCode() {
+        return Objects.hash(x, y);
+    }
+
+  @Override
+  public String toString() {
+      return "(" + x + ", " + y + ")";
   }
 }
 
@@ -26,43 +49,60 @@ class Board {
 
 // Push is an action which indicates which box is pushed and which direction
 class Push {
-  public Integer box_index;
-  public char dir;
+  public Integer crate_index;
+  public Directions dir;
 
-  public Push(Integer box_index, char dir) {
-    this.box_index = box_index;
+  public Push(Integer crate_index, Directions dir) {
+    this.crate_index = crate_index;
     this.dir = dir;
   }
 
-  public Coordinate pushBox(Coordinate box) {
-    int x = box.x;
-    int y = box.y;
+  public Coordinate pushCrate(Coordinate crate) {
+    int x = crate.x;
+    int y = crate.y;
 
-    if (dir == 'u')
+    if (dir == Directions.UP)
       y--;
-    else if (dir == 'r')
+    else if (dir == Directions.RIGHT)
       x++;
-    else if (dir == 'd')
+    else if (dir == Directions.DOWN)
       y++;
-    else if (dir == 'l')
+    else if (dir == Directions.LEFT)
+      x--;
+
+    return new Coordinate(x, y);
+  }
+
+  public Coordinate undoPush(Coordinate crate) {
+    int x = crate.x;
+    int y = crate.y;
+
+    if (dir == Directions.UP)
+      y++;
+    else if (dir == Directions.RIGHT)
+      x--;
+    else if (dir == Directions.DOWN)
       y--;
+    else if (dir == Directions.LEFT)
+      x++;
 
     return new Coordinate(x, y);
   }
 }
 
 public class SokoBot {
+
   private State initState;
   private Board initBoard;
   private Coordinate start_player_pos;
 
   private ArrayList<Coordinate> targets;
 
-  private Coordinate searchValue(int height, int width, char[][] board, BoardValues value) {
+  public static Coordinate searchValue(int width, int height, char[][] board, BoardValues value) {
     for (int i = 0; i < height; i++) {
       for (int j = 0; j < width; j++) {
         if (board[i][j] == value.value)
-          return new Coordinate(i, j);
+          return new Coordinate(j, i);
       }
     }
     return null;
@@ -78,7 +118,9 @@ public class SokoBot {
    * @param itemsData
    * @return
    */
-  private boolean isEnd(State s) {
+
+
+  public static boolean isEnd(State s) {
     for (Coordinate boxes : s.crate_pos_list) {
       if (s.board.mapData[boxes.y][boxes.x] != BoardValues.TARGET.value)
         return false;
@@ -86,115 +128,110 @@ public class SokoBot {
     return true;
   }
 
-  private State move(State s, Push push) {
+  public static State move(State s, Push push) {
     // get the current index of the starting/origin pos of the box
-    Coordinate start_box = s.crate_pos_list.get(push.box_index);
-    Coordinate dest_box = push.pushBox(start_box);
+    Coordinate start_crate = s.crate_pos_list.get(push.crate_index);
+    Coordinate dest_crate = push.pushCrate(start_crate);
 
     // first set the new position of the box
-    s.crate_pos_list.set(push.box_index, dest_box);
-
+    s.crate_pos_list.set(push.crate_index, dest_crate);
+    s.playerPos = start_crate;
     // then reflect it onto the states board
-    s.board.itemData[start_box.y][start_box.x] = BoardValues.EMPTY.value;
-    s.board.itemData[dest_box.y][dest_box.x] = BoardValues.CRATE.value;
+    s.board.itemData[start_crate.y][start_crate.x] = BoardValues.EMPTY.value;
+    s.board.itemData[dest_crate.y][dest_crate.x] = BoardValues.CRATE.value;
 
-    s.prevPush = push;
-
+    s.pushList.add(push);
     return s;
   }
 
-  private boolean isSquareFree(Board board, int y, int x) {
-    return board.mapData[y][x] != BoardValues.WALL.value &&
-        board.itemData[y][x] != BoardValues.CRATE.value &&
-        board.itemData[y][x] != BoardValues.PLAYER.value;
+  public static State unmove(State s) {
+    // get the current index of the starting/origin pos of the box
+    Push prevPush = s.pushList.getLast();
+    Coordinate start_crate = s.crate_pos_list.get(prevPush.crate_index);
+    Coordinate dest_crate = prevPush.undoPush(start_crate);
+
+    // first set the new position of the box
+    s.crate_pos_list.set(prevPush.crate_index, dest_crate);
+    s.playerPos = prevPush.undoPush(dest_crate);
+
+    // then reflect it onto the states board
+    s.board.itemData[start_crate.y][start_crate.x] = BoardValues.EMPTY.value;
+    s.board.itemData[dest_crate.y][dest_crate.x] = BoardValues.CRATE.value;
+
+    s.pushList.remove(prevPush);
+    return s;
   }
 
-  private boolean[] findLegalPushes(Coordinate box, Board board) {
-    boolean[] adjacent = new boolean[4];
-    int[][] directions = {
-        {-1, 0}, // up
-        {0, 1}, // right
-        {1, 0}, // down
-        {0, -1} // left
-    };
-
-    for (int i = 0; i < 4; i++) {
-      if (isSquareFree(board, box.y + directions[i][0],
-          box.x + directions[i][1])) {
-        adjacent[i] = true;
-      }
-    }
-
-    return adjacent;
-  }
-
-  private ArrayList<Push> createLegalPushes(State s) {
+  // TESTED
+  public static ArrayList<Push> getLegalPushes(State s, boolean[][] reach) {
     ArrayList<Push> legalPushes = new ArrayList<>();
 
     // Go through every box's positions
     for (Coordinate box : s.crate_pos_list) {
-      // Check every legal direction the box can go in
-      boolean[] legalDir = findLegalPushes(box, s.board);
-
-      for (int i = 0; i < 4; i++) {
-        // Iterate over the directions {0 = up, 1 = right, 2 = down, 3 = left}
-        if (legalDir[i] == true) {
-          char dir = (i == 0) ? 'u' : (i == 1) ? 'r' : (i == 2) ? 'd' : 'l';
-          legalPushes.add(new Push(s.crate_pos_list.indexOf(box), dir));
+      // System.out.println("Current box: " + box.x + " " + box.y);
+      for (Directions dir : Directions.values()) {
+        // Iterate over the directions
+        // System.out.println((box.y + dir.y) + " " + (box.x + dir.x));
+        Directions opp_dir = dir.getOpposite();
+        if (reach[box.y + dir.y][box.x + dir.x] == true &&
+            s.board.itemData[box.y + opp_dir.y][box.x + opp_dir.x] != BoardValues.CRATE.value &&
+            s.board.mapData[box.y + opp_dir.y][box.x + opp_dir.x] != BoardValues.WALL.value) {
+          legalPushes.add(new Push(s.crate_pos_list.indexOf(box), opp_dir));
         }
       }
     }
     return legalPushes;
   }
-  // FOR CHECKING I DID THIS AT 1AM
-  // bfs, returns bool[][] of tiles the player can move to
-  // false = unreachable, true = reachable
-  // btw idk how to access length and width of the mapdata
-  private boolean[][] playerReachablePos(Board b, Coordinate player_pos, int length, int width)
+
+  // TESTED
+  public static boolean[][] playerReachablePos(Board board, Coordinate player_pos, int width, int height)
   {
     Queue<Coordinate> queue = new LinkedList<>();
-    boolean[][] reachable = new boolean[length][width];
+    boolean[][] reachable = new boolean[height][width];
+    HashMap<Coordinate, Boolean> visited = new HashMap<>();
+
+    queue.add(new Coordinate(player_pos.x, player_pos.y));
     reachable[player_pos.y][player_pos.x] = true;
 
-    queue.add(new Coordinate(player_pos.x, player_pos.y-1));
-    queue.add(new Coordinate(player_pos.x+1, player_pos.y));
-    queue.add(new Coordinate(player_pos.x, player_pos.y+1));
-    queue.add(new Coordinate(player_pos.x-1, player_pos.y));
-
-    while(!queue.isEmpty())
+    while (!queue.isEmpty())
     {
       Coordinate next = queue.remove();
-      if(isSquareFree(b, next.y, next.x))
-      {
-        reachable[next.y][next.x] = true;
-        queue.add(new Coordinate(next.x, next.y-1));
-        queue.add(new Coordinate(next.x+1, next.y));
-        queue.add(new Coordinate(next.x, next.y+1));
-        queue.add(new Coordinate(next.x-1, next.y));
+      visited.put(next, true);
+
+      for (Directions dir : Directions.values()) {
+        Coordinate adj = new Coordinate(next.x + dir.x, next.y + dir.y);
+
+        if (board.mapData[adj.y][adj.x] != BoardValues.WALL.value &&
+            board.itemData[adj.y][adj.x] != BoardValues.CRATE.value &&
+            visited.getOrDefault(adj, false) == false) {
+          queue.add(adj);
+          reachable[adj.y][adj.x] = true;
+        }
       }
     }
 
     return reachable;
   }
 
-  private void DFS(ArrayList<Push> pushList) {
+  public static ArrayList<Push> DFS(State initState, int width, int height) {
     // Create the search tree in a DFS manner
     Stack<State> stateStack = new Stack<>();
-
-    if (isEnd(initState))
-      return;
 
     stateStack.push(initState);
 
     while (!stateStack.empty()) {
       State currState = stateStack.pop();
-      pushList.add(currState.prevPush);
+      // boolean[][] reach = playerReachablePos(currState.board, start_player_pos, height, width);
 
       if (isEnd(currState))
-        break;
+        return currState.pushList;
 
-      ArrayList<Push> legalPushes = createLegalPushes(currState);
+      // TENTATIVE
+      boolean[][] reach = playerReachablePos(currState.board, currState.playerPos, width, height);
+      ArrayList<Push> legalPushes = getLegalPushes(currState, reach);
+
       if (legalPushes.isEmpty()) {
+        unmove(currState);
         // means we have reached a terminal node that isn't a goal state
         // this means we have to undo a push ?? not sure yet
       }
@@ -207,14 +244,8 @@ public class SokoBot {
       }
     }
 
-    if (pushList.isEmpty()) {
-      System.out.println("No pushes");
-      return;
-    }
-
-    for (Push push : pushList) {
-       System.out.println("Push Index: " + push.box_index + ", Direction: " + push.dir);
-    }
+    // no sol
+    return null;
   }
 
   public String solveSokobanPuzzle(int width, int height, char[][] mapData, char[][] itemsData) {
@@ -238,25 +269,23 @@ public class SokoBot {
 
     // initialize the initial board, state, and starting player position
     this.initBoard = new Board(mapData, itemsData);
-    this.start_player_pos = searchValue(height, width, itemsData, BoardValues.PLAYER);
+    this.start_player_pos = searchValue(width, height, itemsData, BoardValues.PLAYER);
 
     ArrayList<Coordinate> crate_pos_list = new ArrayList<>();
     for (int i = 0; i < height; i++) {
       for (int j = 0; j < width; j++) {
-        if (mapData[i][j] == BoardValues.CRATE.value)
-          crate_pos_list.add(new Coordinate(i, j));
+        if (itemsData[i][j] == BoardValues.CRATE.value)
+          crate_pos_list.add(new Coordinate(j, i));
 
         // map out all the targets for future reference???????????????? JUST IN CASE?
         if (mapData[i][j] == BoardValues.TARGET.value)
-        this.targets.add(new Coordinate(i, j));
+        this.targets.add(new Coordinate(j, i));
       }
     }
-    this.initState = new State(crate_pos_list, initBoard, null);
 
-    ArrayList<Push> pushList = new ArrayList<>();
-    DFS(pushList);
+    this.initState = new State(crate_pos_list, initBoard, start_player_pos, null);
 
-    boolean[][] reach = playerReachablePos(initBoard, start_player_pos, height, width);
+    ArrayList<Push> pushList = DFS(initState, width, height);
 
     return "";
   }
@@ -267,6 +296,126 @@ public class SokoBot {
    * @param args
    */
   public static void main(String[] args) {
+    // if (args.length < 2) {
+    //   System.err.println("Usage: Driver <map name> <mode>");
+    //   System.exit(1);
+    // }
 
+    // String mapName = args[0];
+
+    String mapName = "threeboxes1";
+
+    FileReader fileReader = new FileReader();
+    MapData mapData = fileReader.readFile(mapName);
+
+    char[][] map = new char[mapData.rows][mapData.columns];
+    char[][] items = new char[mapData.rows][mapData.columns];
+
+    for (int i = 0; i < mapData.rows; i++) {
+      for (int j = 0; j < mapData.columns; j++) {
+        switch (mapData.tiles[i][j]) {
+          case '#':
+            map[i][j] = '#';
+            items[i][j] = ' ';
+            break;
+          case '@':
+            map[i][j] = ' ';
+            items[i][j] = '@';
+            break;
+          case '$':
+            map[i][j] = ' ';
+            items[i][j] = '$';
+            break;
+          case '.':
+            map[i][j] = '.';
+            items[i][j] = ' ';
+            break;
+          case '+':
+            map[i][j] = '.';
+            items[i][j] = '@';
+            break;
+          case '*':
+            map[i][j] = '.';
+            items[i][j] = '$';
+            break;
+          case ' ':
+            map[i][j] = ' ';
+            items[i][j] = ' ';
+            break;
+        }
+      }
+    }
+
+    int rows = mapData.rows;
+    int columns = mapData.columns;
+
+    ArrayList<Coordinate> crate_pos_list = new ArrayList<>();
+    for (int i = 0; i < rows; i++) {
+      for (int j = 0; j < columns; j++) {
+        if (items[i][j] == BoardValues.CRATE.value)
+          crate_pos_list.add(new Coordinate(j, i));
+      }
+    }
+
+    for (Coordinate coordinate : crate_pos_list) {
+      System.out.println("Crate: " + coordinate.x + " " + coordinate.y);
+    }
+
+    ArrayList<Push> pushList = new ArrayList<>();
+    Board board = new Board(map, items);
+    Coordinate player_pos = searchValue(columns, rows, items, BoardValues.PLAYER);
+    State initstate = new State(crate_pos_list, board, player_pos, pushList);
+
+    // TESTING ZONE
+    // rows - row of board
+    // columns - col of board
+    // map - mapData of board
+    // items - mapData of board
+    // board - Board of board
+    // initstate - initial state of game
+    // player_pos - initial pos of player
+    // pushList - list of current pushes
+    // crate_pos_list - list of crate positions
+
+    for (int i = 0; i < rows; i++) {
+      for (int j = 0; j < columns; j++) {
+        System.out.print(map[i][j] + " ");
+      }
+      System.out.println();
+    }
+
+    System.out.println();
+
+    for (int i = 0; i < rows; i++) {
+      for (int j = 0; j < columns; j++) {
+        if (map[i][j] == BoardValues.WALL.value)
+        System.out.print(map[i][j] + " ");
+        else
+        System.out.print(items[i][j] + " ");
+      }
+      System.out.println();
+    }
+
+    // boolean[][] reach = playerReachablePos(board, player_pos, columns, rows);
+
+    System.out.println();
+    // for (int i = 0; i < rows; i++) {
+    //   for (int j = 0; j < columns; j++) {
+    //     if (reach[i][j] == true)
+    //     System.out.print("true  ");
+    //     else
+    //     System.out.print(reach[i][j] + " ");
+    //   }
+    //   System.out.println();
+    // }
+
+    // System.out.println();
+
+    pushList = getLegalPushes(initstate, playerReachablePos(board, player_pos, columns, rows));
+    // pushList = DFS(initstate, columns, rows);
+
+    for (Push push : pushList) {
+      System.out.println("Crate " + (push.crate_index + 1) + ": " + push.dir);
+    }
   }
 }
