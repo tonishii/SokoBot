@@ -180,11 +180,13 @@ public class SokoBot {
         Directions opp_dir = dir.getOpposite();
 
         try {
-          if (reach[box.y + dir.y][box.x + dir.x] == true &&
-            s.board.itemData[box.y + opp_dir.y][box.x + opp_dir.x] != BoardValues.CRATE.value &&
-            s.board.mapData[box.y + opp_dir.y][box.x + opp_dir.x] != BoardValues.WALL.value) {
-           pushList.add(new Push(s.crate_pos_list.indexOf(box), opp_dir));
-          }
+          if(box.y + dir.y < reach.length && box.x + dir.x < reach[0].length
+                  && box.y + dir.y >= 0 && box.x + dir.x >= 0)
+            if (reach[box.y + dir.y][box.x + dir.x] &&
+              s.board.itemData[box.y + opp_dir.y][box.x + opp_dir.x] != BoardValues.CRATE.value &&
+              s.board.mapData[box.y + opp_dir.y][box.x + opp_dir.x] != BoardValues.WALL.value) {
+              pushList.add(new Push(s.crate_pos_list.indexOf(box), opp_dir));
+            }
         } catch (Exception e) {
           e.printStackTrace(System.err);
         }

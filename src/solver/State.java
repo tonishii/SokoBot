@@ -2,7 +2,7 @@ package solver;
 
 import java.util.ArrayList;
 
-public class State implements Cloneable {
+public class State {
     public ArrayList<Coordinate> crate_pos_list;
     public Board board;
 
@@ -32,10 +32,11 @@ public class State implements Cloneable {
         for (int i = 0; i < this.board.itemData.length; i++) {
             newBoard.itemData[i] = this.board.itemData[i].clone();
         }
-        newBoard.mapData = new char[this.board.mapData.length][this.board.mapData[0].length];
+        newBoard.mapData = this.board.mapData;
+                /*new char[this.board.mapData.length][this.board.mapData[0].length];
         for (int i = 0; i < this.board.mapData.length; i++) {
             newBoard.mapData[i] = this.board.mapData[i].clone();
-        }
+        }*/
 
         newState.board = newBoard;
         newState.playerPos = new Coordinate(this.playerPos.x, this.playerPos.y);
