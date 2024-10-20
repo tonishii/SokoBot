@@ -2,6 +2,7 @@ package solver;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Stack;
 import java.util.HashSet;
@@ -146,10 +147,11 @@ public class SokoBot {
       State currState = stateStack.pop();
       visited.add(currState);
 
-      currState.print();
-      if (isEnd(currState))
+      // currState.print();
+      if (isEnd(currState)) {
+        currState.print();
         return currState.pushList;
-
+      }
       boolean[][] reach = new boolean[height][width];
       playerReachablePos(currState.board, currState.playerPos, reach);
 
@@ -173,6 +175,8 @@ public class SokoBot {
     // no sol
     return null;
   }
+
+
 
   public String solveSokobanPuzzle(int width, int height, char[][] mapData, char[][] itemsData) {
     // STEPS TO SOLVING THE SOKOBAN PUZZLE
@@ -308,14 +312,14 @@ public class SokoBot {
       System.out.println();
     }
 
-    System.out.println();
-    initstate.print();
+    // System.out.println();
+    // initstate.print();
 
     boolean[][] reach = new boolean[rows][columns];
 
-    playerReachablePos(board, player_pos, reach);
-    getLegalPushes(initstate, reach, pushList);
-    // pushList = DFS(initstate, columns, rows);
+    // playerReachablePos(board, player_pos, reach);
+    // getLegalPushes(initstate, reach, pushList);
+    pushList = DFS(initstate, columns, rows);
 
     // for (int i = 0; i < rows; i++) {
     //   for (int j = 0; j < columns; j++) {
@@ -331,9 +335,9 @@ public class SokoBot {
       System.out.println("Crate " + (push.crateIndex + 1) + ": " + push.dir);
     }
 
-    State newState = move(initstate, pushList.get(0));
-    newState.print();
-    newState = unmove(newState);
-    newState.print();
+    // State newState = move(initstate, pushList.get(0));
+    // newState.print();
+    // newState = unmove(newState);
+    // newState.print();
   }
 }
