@@ -113,9 +113,7 @@ public class SokoBot {
    * CURRENTLY ONLY CHECKS IF ALL THE CRATES ARE IN THE CORRECT POSITION BUT
    * DOES NOT CONSIDER CHARACTERS POSITION
    *
-   * @param width
-   * @param height
-   * @param itemsData
+   * @param s
    * @return
    */
 
@@ -128,8 +126,9 @@ public class SokoBot {
     return true;
   }
 
-  public static State move(State s, Push push) {
+  public static State move(State prev, Push push) {
     // get the current index of the starting/origin pos of the box
+    State s = prev.clone();
     Coordinate start_crate = s.crate_pos_list.get(push.crate_index);
     Coordinate dest_crate = push.pushCrate(start_crate);
 
