@@ -137,7 +137,7 @@ public class SokoBot {
       }
 
     HashSet<PlayerPath> visited = new HashSet<>();
-    PriorityQueue<PlayerPath> queue = new PriorityQueue<>((o1, o2) -> Math.min(o1.heuristic, o2.heuristic));
+    PriorityQueue<PlayerPath> queue = new PriorityQueue<>(Comparator.comparingInt(o -> o.heuristic));
     PlayerPath initPos = new PlayerPath(new ArrayList<>(),
             heuristic[player_pos.x][player_pos.y], player_pos);
     queue.add(initPos);
@@ -323,8 +323,15 @@ public class SokoBot {
     this.initState = new State(cratePosList, initBoard, start_player_pos, new ArrayList<>(), h(cratePosList));
 
     ArrayList<Push> pushList = DFS(initState, width, height);
-
-    return "";
+    StringBuilder sb = new StringBuilder();
+    /*if (pushList != null) {
+      boolean[][] reachable = new boolean[height][width];
+      for(Push push : pushList) {
+        playerReachablePos(initBoard, start_player_pos, reachable);
+        pathfinding(initBoard, start_player_pos, reachable, cratePosList.get(push.crateIndex), push.dir.getInt());
+      }
+    }*/
+    return sb.toString();
   }
 
   /**
@@ -441,9 +448,9 @@ public class SokoBot {
     //   }
     //   System.out.println();
     // }
-
     for (Push push : pushList) {
       System.out.println("Crate " + (push.crateIndex + 1) + ": " + push.dir);
+      //pathfinding()
     }
 
     // State newState = move(initstate, pushList.get(0));
