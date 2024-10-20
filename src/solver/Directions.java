@@ -28,4 +28,19 @@ enum Directions {
                 return null;
         }
     }
+
+    public Character getChar() {
+        switch (this) {
+            case UP:
+                return 'u';
+            case RIGHT:
+                return 'r';
+            case DOWN:
+                return 'd';
+            case LEFT:
+                return 'l';
+            default:
+                return null;
+        }
+    }
 }

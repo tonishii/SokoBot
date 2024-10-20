@@ -1,11 +1,7 @@
 package solver;
 
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.PriorityQueue;
-import java.util.Queue;
-import java.util.Stack;
-import java.util.HashSet;
+import java.util.*;
+import java.lang.Math;
 
 import reader.FileReader;
 import reader.MapData;
@@ -116,7 +112,71 @@ public class SokoBot {
     }
   }
 
-  // TESTED
+  public static String pathfinding(Board board, Coordinate player_pos, boolean[][] reachable, Coordinate boxToPush, int direction) {
+    // base case (manhattan distance of 1)
+    if(Math.abs(boxToPush.x - player_pos.x) + Math.abs(boxToPush.y - player_pos.y) == 1) {
+      int[] val = {player_pos.y - boxToPush.y, player_pos.x - boxToPush.x};
+      for(Directions dir : Directions.values())
+      {
+        if(val[0] == dir.y && val[1] == dir.x)
+          return dir.getChar().toString();
+      }
+    }
+
+    // 0 - push up, 1 = right, 2 = down, 3 = right
+    int[][] d = {{-1, 0}, {0, -1}, {1, 0}, {0, 1}};
+    Coordinate destPlayerPos = new Coordinate(boxToPush.x + d[direction][0], player_pos.y - boxToPush.y + d[direction][1]);
+
+    int[][] heuristic = new int[reachable.length][reachable[0].length];
+    for(int y = 0; y < reachable.length; y++)
+      for(int x = 0; x < reachable[0].length; x++) {
+        if(!reachable[y][x])
+          heuristic[y][x] = Integer.MAX_VALUE;
+        else
+          heuristic[y][x] = Math.abs(destPlayerPos.x - player_pos.x) + Math.abs(destPlayerPos.y - player_pos.y);
+      }
+
+    HashSet<PlayerPath> visited = new HashSet<>();
+    PriorityQueue<PlayerPath> queue = new PriorityQueue<>((o1, o2) -> Math.min(o1.heuristic, o2.heuristic));
+    PlayerPath initPos = new PlayerPath(new ArrayList<>(),
+            heuristic[player_pos.x][player_pos.y], player_pos);
+    queue.add(initPos);
+
+    while (!queue.isEmpty()) {
+      PlayerPath next = queue.poll();
+      visited.add(next);
+
+      if(next.currLoc.equals(destPlayerPos)) {
+        next.determinePush(boxToPush);
+        StringBuilder sb = new StringBuilder(next.moveList.size());
+        for(Character ch: next.moveList)
+        {
+          sb.append(ch);
+        }
+        return sb.toString();
+      }
+
+      for (Directions dir : Directions.values()) {
+        PlayerPath adj = new PlayerPath(next.moveList,
+                heuristic[next.currLoc.y + dir.y][next.currLoc.x + dir.x],
+                new Coordinate(next.currLoc.x + dir.x, next.currLoc.y + dir.y));
+
+        if (board.mapData[adj.currLoc.y][adj.currLoc.x] != BoardValues.WALL.value &&
+                board.itemData[adj.currLoc.y][adj.currLoc.x] != BoardValues.CRATE.value &&
+                !visited.contains(adj)) {
+          queue.add(adj);
+        }
+      }
+      if(!queue.isEmpty()) {
+        PlayerPath follows = queue.peek();
+        next.determinePush(follows.currLoc);
+      }
+    }
+
+    // impossible
+    return null;
+  }
+
   public static void playerReachablePos(Board board, Coordinate player_pos, boolean[][] reachable)
   {
     Queue<Coordinate> queue = new LinkedList<>();
@@ -134,7 +194,7 @@ public class SokoBot {
 
         if (board.mapData[adj.y][adj.x] != BoardValues.WALL.value &&
             board.itemData[adj.y][adj.x] != BoardValues.CRATE.value &&
-            visited.contains(adj) == false) {
+            !visited.contains(adj)) {
           queue.add(adj);
           reachable[adj.y][adj.x] = true;
         }
