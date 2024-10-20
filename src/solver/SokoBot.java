@@ -35,6 +35,14 @@ public class SokoBot {
     return true;
   }
 
+  public static int h(ArrayList<Coordinate> cratePosList) {
+    int sumDist = 0;
+    for (Coordinate crate : cratePosList) {
+
+    }
+    return sumDist;
+  }
+
   public static State move(State prev, Push push) {
     State s = prev.copy();
 
@@ -145,13 +153,14 @@ public class SokoBot {
 
     while (!stateStack.empty()) {
       State currState = stateStack.pop();
-      visited.add(currState);
 
       // currState.print();
       if (isEnd(currState)) {
         currState.print();
         return currState.pushList;
       }
+
+      visited.add(currState);
       boolean[][] reach = new boolean[height][width];
       playerReachablePos(currState.board, currState.playerPos, reach);
 
@@ -176,7 +185,49 @@ public class SokoBot {
     return null;
   }
 
+  public static ArrayList<Push> Astar(State initState, int width, int height) {
+    // Create the search tree in a DFS manner
+    ArrayList<Push> legalPushes = new ArrayList<>();
 
+    HashSet<State> visited = new HashSet<>();
+    PriorityQueue<State> stateQ = new PriorityQueue<>();
+
+    stateQ.add(initState);
+
+    while (!stateQ.isEmpty()) {
+      State currState = stateQ.poll();
+
+      // currState.print();
+      if (isEnd(currState)) {
+        currState.print();
+        return currState.pushList;
+      }
+
+      visited.add(currState);
+      boolean[][] reach = new boolean[height][width];
+      playerReachablePos(currState.board, currState.playerPos, reach);
+
+      legalPushes.clear();
+      getLegalPushes(currState, reach, legalPushes);
+
+      if (legalPushes.isEmpty()) {
+        unmove(currState);
+      }
+
+      else {
+        for (Push legalPush : legalPushes) {
+          State resultState = move(currState, legalPush);
+
+          if (visited.contains(resultState) == false &&
+             (stateQ.contains(resultState) == false || currState.f < resultState.f))
+            stateQ.add(resultState);
+        }
+      }
+    }
+
+    // no sol
+    return null;
+  }
 
   public String solveSokobanPuzzle(int width, int height, char[][] mapData, char[][] itemsData) {
     // STEPS TO SOLVING THE SOKOBAN PUZZLE
@@ -209,7 +260,7 @@ public class SokoBot {
       }
     }
 
-    this.initState = new State(cratePosList, initBoard, start_player_pos, new ArrayList<>());
+    this.initState = new State(cratePosList, initBoard, start_player_pos, new ArrayList<>(), h(cratePosList));
 
     ArrayList<Push> pushList = DFS(initState, width, height);
 
@@ -290,7 +341,7 @@ public class SokoBot {
     ArrayList<Push> pushList = new ArrayList<>();
     Board board = new Board(map, items);
     Coordinate player_pos = searchValue(columns, rows, items, BoardValues.PLAYER);
-    State initstate = new State(cratePosList, board, player_pos, new ArrayList<>());
+    State initstate = new State(cratePosList, board, player_pos, new ArrayList<>(), h(cratePosList));
 
     System.out.println("Current player position: " + player_pos.x + " " + player_pos.y);
 

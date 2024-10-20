@@ -3,20 +3,24 @@ package solver;
 import java.util.ArrayList;
 import java.util.Objects;
 
-public class State {
+public class State implements Comparable<State> {
     public ArrayList<Coordinate> cratePosList;
     public Board board;
 
     public Coordinate playerPos;
     public ArrayList<Push> pushList;
 
+    public int f;
+
     public State() {}
 
-    public State(ArrayList<Coordinate> cratePosList, Board board, Coordinate playerPos, ArrayList<Push> pushList) {
+    public State(ArrayList<Coordinate> cratePosList, Board board, Coordinate playerPos, ArrayList<Push> pushList, int h) {
         this.cratePosList = cratePosList;
         this.board = board;
         this.playerPos = playerPos;
         this.pushList = pushList;
+
+        this.f = g() + h;
     }
 
     public State copy() {
@@ -70,6 +74,11 @@ public class State {
     @Override
     public int hashCode() {
         return Objects.hash(cratePosList);
+    }
+
+    @Override
+    public int compareTo(State that) {
+        return Integer.compare(this.f, that.f);
     }
 
     public int g() {
