@@ -9,6 +9,9 @@ public class State implements Cloneable {
     public Coordinate playerPos;
     public ArrayList<Push> pushList;
 
+    public State() {
+    }
+
     public State(ArrayList<Coordinate> crate_pos_list, Board board, Coordinate playerPos, ArrayList<Push> pushList) {
         this.crate_pos_list = crate_pos_list;
         this.board = board;
@@ -16,18 +19,28 @@ public class State implements Cloneable {
         this.pushList = pushList;
     }
 
-    @Override
-    public State clone() {
-        try {
-            State clone = (State) super.clone();
-            // TODO: copy mutable state here, so the clone can't change the internals of the original
-            clone.crate_pos_list = new ArrayList<>(this.crate_pos_list);
-            clone.pushList = new ArrayList<>(this.pushList);
-            clone.playerPos = new Coordinate(this.playerPos.x, this.playerPos.y);
-            clone.board = new Board(this.board.mapData.clone(), this.board.itemData.clone());
-            return clone;
-        } catch (CloneNotSupportedException e) {
-            throw new AssertionError();
+    public State copy() {
+        State newState = new State();
+
+        newState.crate_pos_list = new ArrayList<>();
+        for (Coordinate coord : this.crate_pos_list)
+            newState.crate_pos_list.add(new Coordinate(coord.x, coord.y));
+
+
+        Board newBoard = new Board();
+        newBoard.itemData = new char[this.board.itemData.length][this.board.itemData[0].length];
+        for (int i = 0; i < this.board.itemData.length; i++) {
+            newBoard.itemData[i] = this.board.itemData[i].clone();
         }
+        newBoard.mapData = new char[this.board.mapData.length][this.board.mapData[0].length];
+        for (int i = 0; i < this.board.mapData.length; i++) {
+            newBoard.mapData[i] = this.board.mapData[i].clone();
+        }
+
+        newState.board = newBoard;
+        newState.playerPos = new Coordinate(this.playerPos.x, this.playerPos.y);
+        newState.pushList = new ArrayList<>(this.pushList);
+
+        return newState;
     }
 }

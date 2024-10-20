@@ -41,6 +41,9 @@ class Board {
   public char[][] mapData;
   public char[][] itemData;
 
+  public Board() {
+  }
+
   public Board(char[][] mapData, char[][] itemData) {
     this.mapData = mapData;
     this.itemData = itemData;
@@ -129,23 +132,27 @@ public class SokoBot {
 
   public static State move(State prev, Push push) {
     // get the current index of the starting/origin pos of the box
-    State s = prev.clone();
+    State s = prev.copy();
     Coordinate start_crate = s.crate_pos_list.get(push.crate_index);
     Coordinate dest_crate = push.pushCrate(start_crate);
 
     // first set the new position of the box
     s.crate_pos_list.set(push.crate_index, dest_crate);
+
+    s.board.itemData[s.playerPos.y][s.playerPos.x] = BoardValues.EMPTY.value;
     s.playerPos = start_crate;
+    s.board.itemData[s.playerPos.y][s.playerPos.x] = BoardValues.PLAYER.value;
+
     // then reflect it onto the states board
-    s.board.itemData[start_crate.y][start_crate.x] = BoardValues.EMPTY.value;
     s.board.itemData[dest_crate.y][dest_crate.x] = BoardValues.CRATE.value;
 
     s.pushList.add(push);
     return s;
   }
 
-  public static State unmove(State s) {
+  public static State unmove(State prev) {
     // get the current index of the starting/origin pos of the box
+    State s = prev.copy();
     Push prevPush = s.pushList.getLast();
     Coordinate start_crate = s.crate_pos_list.get(prevPush.crate_index);
     Coordinate dest_crate = prevPush.undoPush(start_crate);
@@ -163,9 +170,7 @@ public class SokoBot {
   }
 
   // TESTED
-  public static ArrayList<Push> getLegalPushes(State s, boolean[][] reach) {
-    ArrayList<Push> legalPushes = new ArrayList<>();
-
+  public static void getLegalPushes(State s, boolean[][] reach, ArrayList<Push> pushList) {
     // Go through every box's positions
     for (Coordinate box : s.crate_pos_list) {
       // System.out.println("Current box: " + box.x + " " + box.y);
@@ -173,21 +178,24 @@ public class SokoBot {
         // Iterate over the directions
         // System.out.println((box.y + dir.y) + " " + (box.x + dir.x));
         Directions opp_dir = dir.getOpposite();
-        if (reach[box.y + dir.y][box.x + dir.x] == true &&
+
+        try {
+          if (reach[box.y + dir.y][box.x + dir.x] == true &&
             s.board.itemData[box.y + opp_dir.y][box.x + opp_dir.x] != BoardValues.CRATE.value &&
             s.board.mapData[box.y + opp_dir.y][box.x + opp_dir.x] != BoardValues.WALL.value) {
-          legalPushes.add(new Push(s.crate_pos_list.indexOf(box), opp_dir));
+           pushList.add(new Push(s.crate_pos_list.indexOf(box), opp_dir));
+          }
+        } catch (Exception e) {
+          e.printStackTrace(System.err);
         }
       }
     }
-    return legalPushes;
   }
 
   // TESTED
-  public static boolean[][] playerReachablePos(Board board, Coordinate player_pos, int width, int height)
+  public static void playerReachablePos(Board board, Coordinate player_pos, boolean[][] reachable)
   {
     Queue<Coordinate> queue = new LinkedList<>();
-    boolean[][] reachable = new boolean[height][width];
     HashMap<Coordinate, Boolean> visited = new HashMap<>();
 
     queue.add(new Coordinate(player_pos.x, player_pos.y));
@@ -209,31 +217,32 @@ public class SokoBot {
         }
       }
     }
-
-    return reachable;
   }
 
   public static ArrayList<Push> DFS(State initState, int width, int height) {
     // Create the search tree in a DFS manner
+    ArrayList<Push> legalPushes = new ArrayList<>();
+    boolean[][] reach = new boolean[height][width];
+
+    HashMap<State, Boolean> visited = new HashMap<>();
     Stack<State> stateStack = new Stack<>();
 
     stateStack.push(initState);
 
+
     while (!stateStack.empty()) {
       State currState = stateStack.pop();
-      // boolean[][] reach = playerReachablePos(currState.board, start_player_pos, height, width);
+      visited.put(currState, true);
 
+      playerReachablePos(currState.board, currState.playerPos, reach);
       if (isEnd(currState))
         return currState.pushList;
 
-      // TENTATIVE
-      boolean[][] reach = playerReachablePos(currState.board, currState.playerPos, width, height);
-      ArrayList<Push> legalPushes = getLegalPushes(currState, reach);
+      playerReachablePos(currState.board, currState.playerPos, reach);
+      getLegalPushes(currState, reach, legalPushes);
 
       if (legalPushes.isEmpty()) {
         unmove(currState);
-        // means we have reached a terminal node that isn't a goal state
-        // this means we have to undo a push ?? not sure yet
       }
 
       else {
@@ -283,7 +292,7 @@ public class SokoBot {
       }
     }
 
-    this.initState = new State(crate_pos_list, initBoard, start_player_pos, null);
+    this.initState = new State(crate_pos_list, initBoard, start_player_pos, new ArrayList<>());
 
     ArrayList<Push> pushList = DFS(initState, width, height);
 
@@ -366,6 +375,8 @@ public class SokoBot {
     Coordinate player_pos = searchValue(columns, rows, items, BoardValues.PLAYER);
     State initstate = new State(crate_pos_list, board, player_pos, pushList);
 
+    System.out.println("Current player position: " + player_pos.x + " " + player_pos.y);
+
     // TESTING ZONE
     // rows - row of board
     // columns - col of board
@@ -410,12 +421,37 @@ public class SokoBot {
     // }
 
     // System.out.println();
+    boolean[][] reach = new boolean[rows][columns];
 
-    pushList = getLegalPushes(initstate, playerReachablePos(board, player_pos, columns, rows));
-    // pushList = DFS(initstate, columns, rows);
+    // playerReachablePos(board, player_pos, reach);
+    // getLegalPushes(initstate, reach, pushList);
+    pushList = DFS(initstate, columns, rows);
 
     for (Push push : pushList) {
       System.out.println("Crate " + (push.crate_index + 1) + ": " + push.dir);
     }
+
+    // State newState = move(initstate, pushList.get(0));
+    // System.out.println("New State after push 0:");
+    // for (int i = 0; i < rows; i++) {
+    //   for (int j = 0; j < columns; j++) {
+    //     if (newState.board.mapData[i][j] == BoardValues.WALL.value)
+    //     System.out.print(newState.board.mapData[i][j] + " ");
+    //     else
+    //     System.out.print(newState.board.itemData[i][j] + " ");
+    //   }
+    //   System.out.println();
+    // }
+
+    // System.out.println("Initial State after push 0:");
+    // for (int i = 0; i < rows; i++) {
+    //   for (int j = 0; j < columns; j++) {
+    //     if (initstate.board.mapData[i][j] == BoardValues.WALL.value)
+    //     System.out.print(initstate.board.mapData[i][j] + " ");
+    //     else
+    //     System.out.print(initstate.board.itemData[i][j] + " ");
+    //   }
+    //   System.out.println();
+    // }
   }
 }
