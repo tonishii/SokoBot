@@ -10,7 +10,9 @@ public class SokoBot {
 
   private State initState;
   private Board initBoard;
-  private Coordinate start_player_pos;
+  private Coordinate startPlayerPos;
+
+  private static ArrayList<Coordinate> targetPosList;
 
   // TESTED
   public static Coordinate searchValue(int width, int height, char[][] board, BoardValues value) {
@@ -34,7 +36,7 @@ public class SokoBot {
   public static int h(ArrayList<Coordinate> cratePosList) {
     int sumDist = 0;
     for (Coordinate crate : cratePosList) {
-
+      // sumDist += Math.abs(crate.x - targetPosList.x) + Math.abs(destPlayerPos.y - player_pos.y);
     }
     return sumDist;
   }
@@ -247,17 +249,17 @@ public class SokoBot {
     return null;
   }
 
-  public static ArrayList<Push> Astar(State initState, int width, int height) {
-    // Create the search tree in a DFS manner
+  public static ArrayList<Push> AStar(State initState, int width, int height) {
+    // Create the search tree in a AStar manner
     ArrayList<Push> legalPushes = new ArrayList<>();
 
     HashSet<State> visited = new HashSet<>();
-    PriorityQueue<State> stateQ = new PriorityQueue<>();
+    PriorityQueue<State> frontier = new PriorityQueue<>();
 
-    stateQ.add(initState);
+    frontier.add(initState);
 
-    while (!stateQ.isEmpty()) {
-      State currState = stateQ.poll();
+    while (!frontier.isEmpty()) {
+      State currState = frontier.poll();
 
       // currState.print();
       if (isEnd(currState)) {
@@ -280,9 +282,23 @@ public class SokoBot {
         for (Push legalPush : legalPushes) {
           State resultState = move(currState, legalPush);
 
+          // set heuristic of resultstate
+
           if (visited.contains(resultState) == false &&
-             (stateQ.contains(resultState) == false || currState.f < resultState.f))
-            stateQ.add(resultState);
+            frontier.contains(resultState) == false)
+            frontier.add(resultState);
+
+          State simState = frontier.stream()
+                                   .filter(state -> state.equals(resultState))
+                                   .findFirst()
+                                   .orElse(null);
+          if (simState == null)
+            continue;
+
+          else if (resultState.f < simState.f) {
+            frontier.remove(simState);
+            frontier.add(resultState);
+          }
         }
       }
     }
@@ -312,7 +328,7 @@ public class SokoBot {
 
     // initialize the initial board, state, and starting player position
     this.initBoard = new Board(mapData, itemsData);
-    this.start_player_pos = searchValue(width, height, itemsData, BoardValues.PLAYER);
+    this.startPlayerPos = searchValue(width, height, itemsData, BoardValues.PLAYER);
 
     ArrayList<Coordinate> cratePosList = new ArrayList<>();
     for (int i = 0; i < height; i++) {
@@ -322,15 +338,15 @@ public class SokoBot {
       }
     }
 
-    this.initState = new State(cratePosList, initBoard, start_player_pos, new ArrayList<>(), h(cratePosList));
+    this.initState = new State(cratePosList, initBoard, startPlayerPos, new ArrayList<>(), h(cratePosList));
 
     ArrayList<Push> pushList = DFS(initState, width, height);
     StringBuilder sb = new StringBuilder();
     /*if (pushList != null) {
       boolean[][] reachable = new boolean[height][width];
       for(Push push : pushList) {
-        playerReachablePos(initBoard, start_player_pos, reachable);
-        pathfinding(initBoard, start_player_pos, reachable, cratePosList.get(push.crateIndex), push.dir.getInt());
+        playerReachablePos(initBoard, startPlayerPos, reachable);
+        pathfinding(initBoard, startPlayerPos, reachable, cratePosList.get(push.crateIndex), push.dir.getInt());
       }
     }*/
     return sb.toString();
@@ -439,7 +455,9 @@ public class SokoBot {
 
     // playerReachablePos(board, player_pos, reach);
     // getLegalPushes(initstate, reach, pushList);
-    pushList = DFS(initstate, columns, rows);
+    // pushList = DFS(initstate, columns, rows);
+    pushList = AStar(initstate, columns, rows);
+
 
     // for (int i = 0; i < rows; i++) {
     //   for (int j = 0; j < columns; j++) {
