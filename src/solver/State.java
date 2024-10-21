@@ -2,6 +2,7 @@ package solver;
 
 import java.util.ArrayList;
 import java.util.Objects;
+import java.util.HashSet;
 
 public class State implements Comparable<State> {
     public ArrayList<Coordinate> cratePosList;
@@ -9,7 +10,6 @@ public class State implements Comparable<State> {
 
     public Coordinate playerPos;
     public ArrayList<Push> pushList;
-
     public int f;
 
     public State() {}
@@ -63,12 +63,13 @@ public class State implements Comparable<State> {
 
         State that = (State) o;
         // Compare crate positions
-        return Objects.equals(this.cratePosList, that.cratePosList);
+        return Objects.equals(new HashSet<Coordinate>(this.cratePosList), new HashSet<Coordinate>(that.cratePosList)) &&
+               Objects.equals(playerPos, that.playerPos);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(cratePosList);
+        return Objects.hash(cratePosList, playerPos);
     }
 
     @Override
