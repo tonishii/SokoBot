@@ -136,7 +136,7 @@ public class SokoBot {
           heuristic[y][x] = Math.abs(destPlayerPos.x - player_pos.x) + Math.abs(destPlayerPos.y - player_pos.y);
       }
 
-    HashSet<PlayerPath> visited = new HashSet<>();
+    HashSet<Coordinate> visited = new HashSet<>();
     PriorityQueue<PlayerPath> queue = new PriorityQueue<>(Comparator.comparingInt(o -> o.heuristic));
     PlayerPath initPos = new PlayerPath(new ArrayList<>(),
             heuristic[player_pos.x][player_pos.y], player_pos);
@@ -144,7 +144,7 @@ public class SokoBot {
 
     while (!queue.isEmpty()) {
       PlayerPath next = queue.poll();
-      visited.add(next);
+      visited.add(next.currLoc);
 
       if(next.currLoc.equals(destPlayerPos)) {
         next.determinePush(boxToPush);
@@ -157,14 +157,16 @@ public class SokoBot {
       }
 
       for (Directions dir : Directions.values()) {
-        PlayerPath adj = new PlayerPath(next.moveList,
-                heuristic[next.currLoc.y + dir.y][next.currLoc.x + dir.x],
-                new Coordinate(next.currLoc.x + dir.x, next.currLoc.y + dir.y));
+        if (next.currLoc.y + dir.y >= 0 && next.currLoc.x + dir.x >= 0 &&
+                next.currLoc.y + dir.y < reachable.length && next.currLoc.x + dir.x < reachable[0].length) {
+          PlayerPath adj = new PlayerPath(next.moveList,
+                  heuristic[next.currLoc.y + dir.y][next.currLoc.x + dir.x],
+                  new Coordinate(next.currLoc.x + dir.x, next.currLoc.y + dir.y));
 
-        if (board.mapData[adj.currLoc.y][adj.currLoc.x] != BoardValues.WALL.value &&
-                board.itemData[adj.currLoc.y][adj.currLoc.x] != BoardValues.CRATE.value &&
-                !visited.contains(adj)) {
-          queue.add(adj);
+          if (reachable[next.currLoc.y][next.currLoc.x] &&
+                  !visited.contains(adj.currLoc)) {
+            queue.add(adj);
+          }
         }
       }
       if(!queue.isEmpty()) {
@@ -450,7 +452,9 @@ public class SokoBot {
     // }
     for (Push push : pushList) {
       System.out.println("Crate " + (push.crateIndex + 1) + ": " + push.dir);
-      //pathfinding()
+      playerReachablePos(initstate.board, player_pos, reach);
+      System.out.println(pathfinding(initstate.board, player_pos, reach, cratePosList.get(push.crateIndex), push.dir.getInt()));
+
     }
 
     // State newState = move(initstate, pushList.get(0));
