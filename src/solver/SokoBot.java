@@ -449,6 +449,24 @@ public class SokoBot {
     // System.out.println("Time taken (in ms): " + ((endTime2 - startTime2) / 1000000));
     // System.out.println("Number of pushes needed: " + pushList.size());
 
+    // test
+    boolean[][] reach = new boolean[mapData.rows][mapData.columns];
+    for(Push push : pushList) {
+      playerReachablePos(initstate.board, player_pos, reach);
+      // society
+      System.out.println(AStarFindPath(initstate.board, player_pos, reach, cratePosList.get(push.crateIndex), push.dir.getInt()));
+      initstate.board.itemData[cratePosList.get(push.crateIndex).y][cratePosList.get(push.crateIndex).x] = BoardValues.PLAYER.value;
+      initstate.board.itemData[cratePosList.get(push.crateIndex).y + push.dir.y][cratePosList.get(push.crateIndex).x + push.dir.x] = BoardValues.CRATE.value;
+      initstate.board.mapData[cratePosList.get(push.crateIndex).y][cratePosList.get(push.crateIndex).x] = BoardValues.PLAYER.value;
+      initstate.board.mapData[cratePosList.get(push.crateIndex).y + push.dir.y][cratePosList.get(push.crateIndex).x + push.dir.x] = BoardValues.CRATE.value;
+      Coordinate boxMoved = cratePosList.get(push.crateIndex);
+      cratePosList.remove(boxMoved);
+      player_pos = boxMoved;
+      boxMoved.y += push.dir.y;
+      boxMoved.x += push.dir.x;
+      cratePosList.add(push.crateIndex, boxMoved);
+    }
+
     // for (Push push : pushList) {
     //   System.out.println("Crate " + (push.crateIndex + 1) + ": " + push.dir);
       // playerReachablePos(initstate.board, player_pos, reach);
