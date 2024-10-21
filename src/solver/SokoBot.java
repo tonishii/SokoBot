@@ -213,15 +213,8 @@ public class SokoBot {
 
     while (!stateStack.empty()) {
       State currState = stateStack.pop();
-
-      // currState.print();
-      if (isEnd(currState)) {
-        return currState.pushList;
-      }
-
       visited.add(currState);
 
-      // currState.print();
       data.pushesEvaluated++;
 
       boolean[][] reach = new boolean[height][width];
@@ -233,7 +226,11 @@ public class SokoBot {
       for (Push legalPush : legalPushes) {
         State resultState = move(currState, legalPush);
 
-        if (visited.contains(resultState) == false) {
+        if (visited.contains(resultState) == false &&
+            stateStack.contains(resultState) == false) {
+          if (isEnd(resultState)) {
+            return resultState.pushList;
+          }
           data.numberOfPushes++;
           stateStack.push(resultState);
         }
@@ -249,7 +246,7 @@ public class SokoBot {
     ArrayList<Push> legalPushes = new ArrayList<>();
 
     HashSet<State> visited = new HashSet<>();
-    PriorityQueue<State> frontier = new PriorityQueue<>(Comparator.comparingInt(o -> h(o.cratePosList, targetPosList)));
+    PriorityQueue<State> frontier = new PriorityQueue<>(Comparator.comparingInt(o -> o.g() + h(o.cratePosList, targetPosList)));
 
     frontier.add(initState);
 
@@ -474,7 +471,7 @@ public class SokoBot {
     //   }
     //   System.out.println();
     // }
-
+    System.out.println(mapName + " algorithm performance: ");
     Performance data1 = new Performance("DFS");
     long startTime1 = System.nanoTime();
     pushList = DFS(initstate, columns, rows, data1);
