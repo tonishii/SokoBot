@@ -35,6 +35,10 @@ public class SokoBot {
     return estPushes;
   }
 
+  public static int h(Coordinate a, Coordinate b) {
+    return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+  }
+
   public static State move(State prev, Push push) {
     State s = prev.copy();
 
@@ -103,70 +107,51 @@ public class SokoBot {
     }
   }
 
-  public  String pathfinding(Board board, Coordinate player_pos, boolean[][] reachable, Coordinate boxToPush, int direction) {
-    // base case (manhattan distance of 1)
-    if(Math.abs(boxToPush.x - player_pos.x) + Math.abs(boxToPush.y - player_pos.y) == 1) {
-      int[] val = {player_pos.y - boxToPush.y, player_pos.x - boxToPush.x};
-      for(Directions dir : Directions.values())
-      {
-        if(val[0] == dir.y && val[1] == dir.x)
-          return dir.getChar().toString();
-      }
-    }
-
-    // 0 - push up, 1 = right, 2 = down, 3 = right
-    int[][] d = {{-1, 0}, {0, -1}, {1, 0}, {0, 1}};
-    Coordinate destPlayerPos = new Coordinate(boxToPush.x + d[direction][0], player_pos.y - boxToPush.y + d[direction][1]);
-
-    int[][] heuristic = new int[reachable.length][reachable[0].length];
-    for(int y = 0; y < reachable.length; y++)
-      for(int x = 0; x < reachable[0].length; x++) {
-        if(!reachable[y][x])
-          heuristic[y][x] = Integer.MAX_VALUE;
-        else
-          heuristic[y][x] = Math.abs(destPlayerPos.x - player_pos.x) + Math.abs(destPlayerPos.y - player_pos.y);
-      }
-
+  public static void solveHelper(Board board, Coordinate startPos, Coordinate destPos, StringBuilder sb) {
     HashSet<Coordinate> visited = new HashSet<>();
-    PriorityQueue<PlayerPath> queue = new PriorityQueue<>(Comparator.comparingInt(o -> o.heuristic));
-    PlayerPath initPos = new PlayerPath(new ArrayList<>(),
-            heuristic[player_pos.y][player_pos.x], player_pos);
-    queue.add(initPos);
+    PriorityQueue<PlayerPath> frontier = new PriorityQueue<>(Comparator.comparingInt(o -> o.g() + h(o.playerPos, destPos)));
 
-    while (!queue.isEmpty()) {
-      PlayerPath next = queue.poll();
-      visited.add(next.currLoc);
+    frontier.add(new PlayerPath(new ArrayList<>(), startPos, h(startPos, destPos)));
 
-      if(next.currLoc.equals(destPlayerPos)) {
-        next.determinePush(boxToPush);
-        StringBuilder sb = new StringBuilder(next.moveList.size());
-        for(Character ch: next.moveList)
-        {
-          sb.append(ch);
+    while (!frontier.isEmpty()) {
+      PlayerPath currPos = frontier.poll();
+
+      if (currPos.equals(destPos)) {
+        while (!currPos.moveList.isEmpty()) {
+          sb.append(currPos.moveList.removeFirst());
         }
-        return sb.toString();
+        return;
       }
+
+      visited.add(currPos.playerPos);
 
       for (Directions dir : Directions.values()) {
-        if (next.currLoc.y + dir.y >= 0 && next.currLoc.x + dir.x >= 0 &&
-                next.currLoc.y + dir.y < reachable.length && next.currLoc.x + dir.x < reachable[0].length) {
-          PlayerPath adj = new PlayerPath(next.moveList,
-                  heuristic[next.currLoc.y + dir.y][next.currLoc.x + dir.x],
-                  new Coordinate(next.currLoc.x + dir.x, next.currLoc.y + dir.y));
-          if (reachable[next.currLoc.y][next.currLoc.x] &&
-                  !visited.contains(adj.currLoc)) {
-            queue.add(adj);
+        Coordinate resultPos = new Coordinate(currPos.playerPos.x + dir.y, currPos.playerPos.y + dir.y);
+
+        if (resultPos.y >= 0 && resultPos.x >= 0 &&
+            resultPos.y < board.mapData.length && resultPos.x < board.mapData[0].length) {
+          if (board.mapData[resultPos.y][resultPos.x] == BoardValues.WALL.value ||
+              board.itemData[resultPos.y][resultPos.x] == BoardValues.CRATE.value ||
+              visited.contains(resultPos)) {
+              continue;
           }
         }
-      }
-      if(!queue.isEmpty()) {
-        PlayerPath follows = queue.peek();
-        next.determinePush(follows.currLoc);
+
+        PlayerPath resultPath = new PlayerPath(currPos.moveList, resultPos, h(startPos, destPos));
+
+        PlayerPath similarPath = frontier.stream()
+                                 .filter(path -> path.equals(resultPath))
+                                 .findFirst()
+                                 .orElse(null);
+        if (similarPath == null)
+          frontier.add(resultPath);
+
+        else if (resultPath.f < similarPath.f) {
+          frontier.remove(similarPath);
+          frontier.add(resultPath);
+        }
       }
     }
-
-    // impossible
-    return null;
   }
 
   public static void playerReachablePos(Board board, Coordinate player_pos, boolean[][] reachable)
@@ -236,12 +221,12 @@ public class SokoBot {
     return null;
   }
 
-  public static ArrayList<Push> AStar(State initState, ArrayList<Coordinate> targetPosList, int width, int height, Performance data) {
+  public ArrayList<Push> AStar(State initState, int width, int height, Performance data) {
     // Create the search tree in a AStar manner
     ArrayList<Push> legalPushes = new ArrayList<>();
 
     HashSet<State> visited = new HashSet<>();
-    PriorityQueue<State> frontier = new PriorityQueue<>(Comparator.comparingInt(o -> o.g() + h(o.cratePosList, targetPosList)));
+    PriorityQueue<State> frontier = new PriorityQueue<>(Comparator.comparingInt(o -> o.g() + h(o.cratePosList, this.targetPosList)));
 
     frontier.add(initState);
 
@@ -249,6 +234,7 @@ public class SokoBot {
       State currState = frontier.poll();
 
       if (isEnd(currState)) {
+        System.out.println("HELLO");
         return currState.pushList;
       }
 
@@ -291,38 +277,19 @@ public class SokoBot {
       }
     }
 
-    // no sol
     return null;
   }
 
   public String solveSokobanPuzzle(int width, int height, char[][] mapData, char[][] itemsData) {
-    // STEPS TO SOLVING THE SOKOBAN PUZZLE
-    // 1. Initiate SOKOBOT with the initial state
-
-    // 2. Search the state tree in a DFS manner meaning,
-    // We push the initial state to the DFS stack
-    // THEN its children will be pushed to the DFS stack
-
-    // For context, its children are all the resulting state AFTER doing a legal push
-    // We do this for every state not only for the initial state after popping the top from the stack
-
-    // DFS only ends when either we find the solution using the isEnd function
-    // or the stack will have no more states to check (IMPOSSIBLE!!)
-    // After getting the list of pushes in order to solve the puzzle, we...
-
-    // 3. Player/character will do the pushes in the order given by the list
-    //    WHILE remembering the steps we took to get there (STRINGBUILDER???)
-    // 4. THEN we return the steps we took to solve the puzzle
-
-    // initialize the initial board, state, and starting player position
-
     ArrayList<Coordinate> cratePosList = new ArrayList<>();
+    this.targetPosList = new ArrayList<>();
+
     for (int i = 0; i < height; i++) {
       for (int j = 0; j < width; j++) {
         if (itemsData[i][j] == BoardValues.CRATE.value)
           cratePosList.add(new Coordinate(j, i));
         if (mapData[i][j] == BoardValues.TARGET.value)
-          targetPosList.add(new Coordinate(j, i));
+          this.targetPosList.add(new Coordinate(j, i));
         if (itemsData[i][j] == BoardValues.PLAYER.value)
           this.startPlayerPos = new Coordinate(j, i);
       }
@@ -331,19 +298,19 @@ public class SokoBot {
     this.initBoard = new Board(mapData, itemsData);
     this.initState = new State(cratePosList, initBoard, startPlayerPos, new ArrayList<>(), h(cratePosList, targetPosList));
 
-    Performance data1 = new Performance("DFS");
-    ArrayList<Push> pushList1 = DFS(initState, width, height, data1);
-    Performance data2 = new Performance("AStar");
-    ArrayList<Push> pushList2 = AStar(initState, targetPosList, width, height, data2);
+    Performance data = new Performance("AStar");
+    ArrayList<Push> pushList = AStar(initState, width, height, data);
+
 
     StringBuilder sb = new StringBuilder();
-    /*if (pushList != null) {
-      boolean[][] reachable = new boolean[height][width];
-      for(Push push : pushList) {
-        playerReachablePos(initBoard, startPlayerPos, reachable);
-        pathfinding(initBoard, startPlayerPos, reachable, cratePosList.get(push.crateIndex), push.dir.getInt());
-      }
-    }*/
+    Coordinate currPos = initState.playerPos;
+
+    for (Push push : pushList) {
+      solveHelper(initState.board, currPos, initState.cratePosList.get(push.crateIndex), sb);
+      sb.append(push.dir.getChar());
+      currPos = push.pushCrate(currPos);
+    }
+
     return sb.toString();
   }
 
@@ -474,13 +441,13 @@ public class SokoBot {
     System.out.println("Time taken (in ms): " + ((endTime1 - startTime1) / 1000000));
     System.out.println("Number of pushes needed: " + pushList.size() + '\n');
 
-    Performance data2 = new Performance("AStar");
-    long startTime2 = System.nanoTime();
-    pushList = AStar(initstate, targetPosList, columns, rows, data2);
-    long endTime2 = System.nanoTime();
-    data2.print();
-    System.out.println("Time taken (in ms): " + ((endTime2 - startTime2) / 1000000));
-    System.out.println("Number of pushes needed: " + pushList.size());
+    // Performance data2 = new Performance("AStar");
+    // long startTime2 = System.nanoTime();
+    // pushList = AStar(initstate, targetPosList, columns, rows, data2);
+    // long endTime2 = System.nanoTime();
+    // data2.print();
+    // System.out.println("Time taken (in ms): " + ((endTime2 - startTime2) / 1000000));
+    // System.out.println("Number of pushes needed: " + pushList.size());
 
     // for (Push push : pushList) {
     //   System.out.println("Crate " + (push.crateIndex + 1) + ": " + push.dir);
