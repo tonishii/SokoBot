@@ -214,6 +214,7 @@ public class SokoBot {
     while (!stateStack.empty()) {
       State currState = stateStack.pop();
 
+      // currState.print();
       if (isEnd(currState)) {
         return currState.pushList;
       }
@@ -248,7 +249,7 @@ public class SokoBot {
     ArrayList<Push> legalPushes = new ArrayList<>();
 
     HashSet<State> visited = new HashSet<>();
-    PriorityQueue<State> frontier = new PriorityQueue<>();
+    PriorityQueue<State> frontier = new PriorityQueue<>(Comparator.comparingInt(o -> h(o.cratePosList, targetPosList)));
 
     frontier.add(initState);
 
@@ -475,13 +476,19 @@ public class SokoBot {
     // }
 
     Performance data1 = new Performance("DFS");
+    long startTime1 = System.nanoTime();
     pushList = DFS(initstate, columns, rows, data1);
+    long endTime1 = System.nanoTime();
     data1.print();
+    System.out.println("Time taken (in ms): " + ((endTime1 - startTime1) / 1000000));
     System.out.println("Number of pushes needed: " + pushList.size() + '\n');
 
     Performance data2 = new Performance("AStar");
+    long startTime2 = System.nanoTime();
     pushList = AStar(initstate, targetPosList, columns, rows, data2);
+    long endTime2 = System.nanoTime();
     data2.print();
+    System.out.println("Time taken (in ms): " + ((endTime2 - startTime2) / 1000000));
     System.out.println("Number of pushes needed: " + pushList.size());
 
     // for (Push push : pushList) {
