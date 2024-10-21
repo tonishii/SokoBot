@@ -12,18 +12,7 @@ public class SokoBot {
   private Board initBoard;
   private Coordinate startPlayerPos;
 
-  private static ArrayList<Coordinate> targetPosList;
-
-  // TESTED
-  public static Coordinate searchValue(int width, int height, char[][] board, BoardValues value) {
-    for (int i = 0; i < height; i++) {
-      for (int j = 0; j < width; j++) {
-        if (board[i][j] == value.value)
-          return new Coordinate(j, i);
-      }
-    }
-    return null;
-  }
+  private ArrayList<Coordinate> targetPosList;
 
   public static boolean isEnd(State s) {
     for (Coordinate crate : s.cratePosList) {
@@ -33,12 +22,17 @@ public class SokoBot {
     return true;
   }
 
-  public static int h(ArrayList<Coordinate> cratePosList) {
-    int sumDist = 0;
+  public static int h(ArrayList<Coordinate> cratePosList, ArrayList<Coordinate> targetPosList) {
+    int estPushes = 0;
+    PriorityQueue<Integer> distances = new PriorityQueue<>();
     for (Coordinate crate : cratePosList) {
-      // sumDist += Math.abs(crate.x - targetPosList.x) + Math.abs(destPlayerPos.y - player_pos.y);
+      distances.clear();
+      for (Coordinate target : targetPosList) {
+        distances.add(Math.abs(crate.x - target.x) + Math.abs(crate.y - target.y));
+      }
+      estPushes += (int) distances.poll();
     }
-    return sumDist;
+    return estPushes;
   }
 
   public static State move(State prev, Push push) {
@@ -114,7 +108,7 @@ public class SokoBot {
     }
   }
 
-  public static String pathfinding(Board board, Coordinate player_pos, boolean[][] reachable, Coordinate boxToPush, int direction) {
+  public  String pathfinding(Board board, Coordinate player_pos, boolean[][] reachable, Coordinate boxToPush, int direction) {
     // base case (manhattan distance of 1)
     if(Math.abs(boxToPush.x - player_pos.x) + Math.abs(boxToPush.y - player_pos.y) == 1) {
       int[] val = {player_pos.y - boxToPush.y, player_pos.x - boxToPush.x};
@@ -208,7 +202,7 @@ public class SokoBot {
     }
   }
 
-  public static ArrayList<Push> DFS(State initState, int width, int height) {
+  public ArrayList<Push> DFS(State initState, int width, int height, Performance data) {
     // Create the search tree in a DFS manner
     ArrayList<Push> legalPushes = new ArrayList<>();
 
@@ -222,7 +216,6 @@ public class SokoBot {
 
       // currState.print();
       if (isEnd(currState)) {
-        currState.print();
         return currState.pushList;
       }
 
@@ -251,7 +244,7 @@ public class SokoBot {
     return null;
   }
 
-  public static ArrayList<Push> AStar(State initState, int width, int height) {
+  public static ArrayList<Push> AStar(State initState, ArrayList<Coordinate> targetPosList, int width, int height, Performance data) {
     // Create the search tree in a AStar manner
     ArrayList<Push> legalPushes = new ArrayList<>();
 
@@ -262,10 +255,9 @@ public class SokoBot {
 
     while (!frontier.isEmpty()) {
       State currState = frontier.poll();
+      data.pushesEvaluated++;
 
-      // currState.print();
       if (isEnd(currState)) {
-        currState.print();
         return currState.pushList;
       }
 
@@ -277,28 +269,30 @@ public class SokoBot {
       getLegalPushes(currState, reach, legalPushes);
 
       if (legalPushes.isEmpty()) {
+        data.numberOfPushes--;
         unmove(currState);
       }
 
       else {
         for (Push legalPush : legalPushes) {
           State resultState = move(currState, legalPush);
-
-          // set heuristic of resultstate
+          resultState.f = resultState.g() + h(resultState.cratePosList, targetPosList);
 
           if (visited.contains(resultState) == false &&
-            frontier.contains(resultState) == false)
+            frontier.contains(resultState) == false) {
             frontier.add(resultState);
+            data.numberOfPushes++;
+          }
 
-          State simState = frontier.stream()
+          State similarState = frontier.stream()
                                    .filter(state -> state.equals(resultState))
                                    .findFirst()
                                    .orElse(null);
-          if (simState == null)
+          if (similarState == null)
             continue;
 
-          else if (resultState.f < simState.f) {
-            frontier.remove(simState);
+          else if (resultState.f < similarState.f) {
+            frontier.remove(similarState);
             frontier.add(resultState);
           }
         }
@@ -329,20 +323,26 @@ public class SokoBot {
     // 4. THEN we return the steps we took to solve the puzzle
 
     // initialize the initial board, state, and starting player position
-    this.initBoard = new Board(mapData, itemsData);
-    this.startPlayerPos = searchValue(width, height, itemsData, BoardValues.PLAYER);
 
     ArrayList<Coordinate> cratePosList = new ArrayList<>();
     for (int i = 0; i < height; i++) {
       for (int j = 0; j < width; j++) {
         if (itemsData[i][j] == BoardValues.CRATE.value)
           cratePosList.add(new Coordinate(j, i));
+        if (mapData[i][j] == BoardValues.TARGET.value)
+          targetPosList.add(new Coordinate(j, i));
+        if (itemsData[i][j] == BoardValues.PLAYER.value)
+          this.startPlayerPos = new Coordinate(j, i);
       }
     }
 
-    this.initState = new State(cratePosList, initBoard, startPlayerPos, new ArrayList<>(), h(cratePosList));
+    this.initBoard = new Board(mapData, itemsData);
+    this.initState = new State(cratePosList, initBoard, startPlayerPos, new ArrayList<>(), h(cratePosList, targetPosList));
 
-    ArrayList<Push> pushList = DFS(initState, width, height);
+    Performance data = new Performance();
+    ArrayList<Push> pushList1 = DFS(initState, width, height, data);
+    // ArrayList<Push> pushList2 = AStar(initState, width, height, data);
+
     StringBuilder sb = new StringBuilder();
     /*if (pushList != null) {
       boolean[][] reachable = new boolean[height][width];
@@ -359,14 +359,7 @@ public class SokoBot {
    *
    * @param args
    */
-  public static void main(String[] args) {
-    // if (args.length < 2) {
-    //   System.err.println("Usage: Driver <map name> <mode>");
-    //   System.exit(1);
-    // }
-
-    // String mapName = args[0];
-
+  public static void main (String[] args) {
     String mapName = "threeboxes1";
 
     FileReader fileReader = new FileReader();
@@ -414,12 +407,22 @@ public class SokoBot {
     int columns = mapData.columns;
 
     ArrayList<Coordinate> cratePosList = new ArrayList<>();
+    ArrayList<Coordinate> targetPosList = new ArrayList<>();
+    Coordinate player_pos = null;
+
     for (int i = 0; i < rows; i++) {
       for (int j = 0; j < columns; j++) {
         if (items[i][j] == BoardValues.CRATE.value)
           cratePosList.add(new Coordinate(j, i));
+        if (map[i][j] == BoardValues.TARGET.value)
+          targetPosList.add(new Coordinate(j, i));
+        if (items[i][j] == BoardValues.PLAYER.value)
+          player_pos = new Coordinate(j, i);
       }
     }
+
+    if (player_pos == null)
+      return;
 
     for (Coordinate coordinate : cratePosList) {
       System.out.println("Crate: " + coordinate.x + " " + coordinate.y);
@@ -427,8 +430,8 @@ public class SokoBot {
 
     ArrayList<Push> pushList = new ArrayList<>();
     Board board = new Board(map, items);
-    Coordinate player_pos = searchValue(columns, rows, items, BoardValues.PLAYER);
-    State initstate = new State(cratePosList, board, player_pos, new ArrayList<>(), h(cratePosList));
+
+    State initstate = new State(cratePosList, board, player_pos, new ArrayList<>(), h(cratePosList, targetPosList));
 
     System.out.println("Current player position: " + player_pos.x + " " + player_pos.y);
 
@@ -450,17 +453,18 @@ public class SokoBot {
       System.out.println();
     }
 
-    // System.out.println();
-    // initstate.print();
+    initstate.print();
 
     boolean[][] reach = new boolean[rows][columns];
 
     // playerReachablePos(board, player_pos, reach);
     // getLegalPushes(initstate, reach, pushList);
     // pushList = DFS(initstate, columns, rows);
-    pushList = AStar(initstate, columns, rows);
+    Performance data = new Performance();
+    pushList = AStar(initstate, targetPosList, columns, rows, data);
 
-
+    data.print();
+    System.out.println("Number of pushes needed: " + pushList.size());
     // for (int i = 0; i < rows; i++) {
     //   for (int j = 0; j < columns; j++) {
     //     if (reach[i][j] == true)
@@ -470,12 +474,13 @@ public class SokoBot {
     //   }
     //   System.out.println();
     // }
+
     for (Push push : pushList) {
       System.out.println("Crate " + (push.crateIndex + 1) + ": " + push.dir);
-      playerReachablePos(initstate.board, player_pos, reach);
-      System.out.println(pathfinding(initstate.board, player_pos, reach, cratePosList.get(push.crateIndex), push.dir.getInt()));
-      cratePosList.add(push.crateIndex, new Coordinate(cratePosList.get(push.crateIndex).x + push.dir.x, cratePosList.get(push.crateIndex).y + push.dir.y));
-      player_pos = cratePosList.get(push.crateIndex);
+      // playerReachablePos(initstate.board, player_pos, reach);
+      // System.out.println(pathfinding(initstate.board, player_pos, reach, cratePosList.get(push.crateIndex), push.dir.getInt()));
+      // cratePosList.add(push.crateIndex, new Coordinate(cratePosList.get(push.crateIndex).x + push.dir.x, cratePosList.get(push.crateIndex).y + push.dir.y));
+      // player_pos = cratePosList.get(push.crateIndex);
     }
 
     // State newState = move(initstate, pushList.get(0));

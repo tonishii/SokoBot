@@ -54,11 +54,6 @@ public class State implements Comparable<State> {
             }
             System.out.println();
         }
-
-        for (Push push : this.pushList) {
-            System.out.print("Push " + push.crateIndex + ": " + push.dir + " ");
-        }
-        System.out.println();
     }
 
     @Override
