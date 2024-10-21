@@ -92,17 +92,12 @@ public class SokoBot {
       for (Directions dir : Directions.values()) {
         Directions opp_dir = dir.getOpposite();
 
-        // Check if within bounds
-        if (box.y + dir.y < reach.length && box.x + dir.x < reach[0].length &&
-            box.y + dir.y >= 0 && box.x + dir.x >= 0) {
+        // Check if nothing is in the way after a push and within reach of the player
+        if (reach[box.y + dir.y][box.x + dir.x] &&
+            s.board.itemData[box.y + opp_dir.y][box.x + opp_dir.x] != BoardValues.CRATE.value &&
+            s.board.mapData[box.y + opp_dir.y][box.x + opp_dir.x] != BoardValues.WALL.value) {
 
-          // Check if nothing is in the way after a push and within reach of the player
-          if (reach[box.y + dir.y][box.x + dir.x] &&
-              s.board.itemData[box.y + opp_dir.y][box.x + opp_dir.x] != BoardValues.CRATE.value &&
-              s.board.mapData[box.y + opp_dir.y][box.x + opp_dir.x] != BoardValues.WALL.value) {
-
-            pushList.add(new Push(s.cratePosList.indexOf(box), opp_dir));
-          }
+          pushList.add(new Push(s.cratePosList.indexOf(box), opp_dir));
         }
       }
     }
@@ -252,14 +247,14 @@ public class SokoBot {
 
     while (!frontier.isEmpty()) {
       State currState = frontier.poll();
-      data.pushesEvaluated++;
-      // currState.print();
 
       if (isEnd(currState)) {
         return currState.pushList;
       }
 
       visited.add(currState);
+      data.pushesEvaluated++;
+
       boolean[][] reach = new boolean[height][width];
       playerReachablePos(currState.board, currState.playerPos, reach);
 
@@ -274,7 +269,6 @@ public class SokoBot {
       else {
         for (Push legalPush : legalPushes) {
           State resultState = move(currState, legalPush);
-          resultState.f = resultState.g() + h(resultState.cratePosList, targetPosList);
 
           if (visited.contains(resultState) == false &&
             frontier.contains(resultState) == false) {
@@ -359,7 +353,7 @@ public class SokoBot {
    * @param args
    */
   public static void main (String[] args) {
-    String mapName = "twoboxes1";
+    String mapName = "threeboxes1";
 
     FileReader fileReader = new FileReader();
     MapData mapData = fileReader.readFile(mapName);
