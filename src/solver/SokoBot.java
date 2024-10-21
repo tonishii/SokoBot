@@ -103,7 +103,7 @@ public class SokoBot {
     }
   }
 
-  public  String pathfinding(Board board, Coordinate player_pos, boolean[][] reachable, Coordinate boxToPush, int direction) {
+  public static String AStarFindPath(Board board, Coordinate player_pos, boolean[][] reachable, Coordinate boxToPush, int direction) {
     // base case (manhattan distance of 1)
     if(Math.abs(boxToPush.x - player_pos.x) + Math.abs(boxToPush.y - player_pos.y) == 1) {
       int[] val = {player_pos.y - boxToPush.y, player_pos.x - boxToPush.x};
@@ -116,7 +116,7 @@ public class SokoBot {
 
     // 0 - push up, 1 = right, 2 = down, 3 = right
     int[][] d = {{-1, 0}, {0, -1}, {1, 0}, {0, 1}};
-    Coordinate destPlayerPos = new Coordinate(boxToPush.x + d[direction][0], player_pos.y - boxToPush.y + d[direction][1]);
+    Coordinate destPlayerPos = new Coordinate(boxToPush.x + d[direction][0], boxToPush.y + d[direction][1]);
 
     int[][] heuristic = new int[reachable.length][reachable[0].length];
     for(int y = 0; y < reachable.length; y++)
@@ -140,10 +140,12 @@ public class SokoBot {
       if(next.currLoc.equals(destPlayerPos)) {
         next.determinePush(boxToPush);
         StringBuilder sb = new StringBuilder(next.moveList.size());
-        for(Character ch: next.moveList)
+        /* for(Character ch: next.moveList)
         {
           sb.append(ch);
         }
+        return sb.toString(); */
+        sb.append(next.moveList);
         return sb.toString();
       }
 
@@ -481,6 +483,24 @@ public class SokoBot {
     data2.print();
     System.out.println("Time taken (in ms): " + ((endTime2 - startTime2) / 1000000));
     System.out.println("Number of pushes needed: " + pushList.size());
+
+    // test
+    boolean[][] reach = new boolean[mapData.rows][mapData.columns];
+    for(Push push : pushList) {
+      playerReachablePos(initstate.board, player_pos, reach);
+      // society
+      System.out.println(AStarFindPath(initstate.board, player_pos, reach, cratePosList.get(push.crateIndex), push.dir.getInt()));
+      initstate.board.itemData[cratePosList.get(push.crateIndex).y][cratePosList.get(push.crateIndex).x] = BoardValues.PLAYER.value;
+      initstate.board.itemData[cratePosList.get(push.crateIndex).y + push.dir.y][cratePosList.get(push.crateIndex).x + push.dir.x] = BoardValues.CRATE.value;
+      initstate.board.mapData[cratePosList.get(push.crateIndex).y][cratePosList.get(push.crateIndex).x] = BoardValues.PLAYER.value;
+      initstate.board.mapData[cratePosList.get(push.crateIndex).y + push.dir.y][cratePosList.get(push.crateIndex).x + push.dir.x] = BoardValues.CRATE.value;
+      Coordinate boxMoved = cratePosList.get(push.crateIndex);
+      cratePosList.remove(boxMoved);
+      player_pos = boxMoved;
+      boxMoved.y += push.dir.y;
+      boxMoved.x += push.dir.x;
+      cratePosList.add(push.crateIndex, boxMoved);
+    }
 
     // for (Push push : pushList) {
     //   System.out.println("Crate " + (push.crateIndex + 1) + ": " + push.dir);
