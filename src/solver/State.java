@@ -66,9 +66,9 @@ public class State implements Comparable<State> {
         if (this == o) return true;  // Check if same reference
         if (o == null || getClass() != o.getClass()) return false;  // Check if types are the same
 
-        State state = (State) o;
+        State that = (State) o;
         // Compare crate positions
-        return Objects.equals(cratePosList, state.cratePosList);
+        return Objects.equals(this.cratePosList, that.cratePosList);
     }
 
     @Override
