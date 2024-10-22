@@ -362,7 +362,7 @@ public class SokoBot {
       playerReachablePos(nextState.board, width, height, nextState.playerPos, reach);
 
       for (Push push : getLegalPushes(nextState, reach)) {
-        State resState = move(nextState, push, this.hashTable);
+        State resState = move(nextState, push/*, this.hashTable*/);
         Node resNode = new Node(resState, push, next, next.depth+1, targetPosList);
 
         long resKey = getHashKey(resState.cratePosList);
@@ -419,7 +419,7 @@ public class SokoBot {
     this.initBoard = new Board(mapData, itemsData, width, height);
     this.initState = new State(cratePosList, initBoard, startPlayerPos);
 
-    Node resNode = ZAStar(initState, width, height, targetPosList);
+    Node resNode = AStar(initState, width, height, targetPosList);
 
     ArrayList<Push> pushList = new ArrayList<>();
 
