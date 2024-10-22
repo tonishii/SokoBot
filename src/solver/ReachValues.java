@@ -1,7 +1,6 @@
 package solver;
 
 enum ReachValues {
-    NAN(0),
     RCRATE(1),
     RSPACE(2);
 
