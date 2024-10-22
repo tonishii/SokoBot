@@ -8,26 +8,17 @@ public class PlayerPath {
     public Coordinate playerPos;
     public int f;
 
-    public PlayerPath(ArrayList<Character> moveList, Coordinate playerPos, int h) {
-        this.moveList = new ArrayList<>(moveList);
-        this.playerPos = playerPos;
-        this.f = g() + h;
-    }
-
     public PlayerPath(ArrayList<Character> moveList, Coordinate playerPos) {
         this.moveList = new ArrayList<>(moveList);
         this.playerPos = playerPos;
     }
 
-    public int g() {
-        return moveList.size();
+    public int f(Coordinate b) {
+        return moveList.size() + Math.abs(this.playerPos.x - b.x) + Math.abs(this.playerPos.y - b.y);
     }
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;  // Check if same reference
-        if (o == null || getClass() != o.getClass()) return false;  // Check if types are the same
-
         PlayerPath that = (PlayerPath) o;
         // Compare crate positions
         return Objects.equals(this.playerPos, that.playerPos);

@@ -35,10 +35,10 @@ public class State {
 
     public long getHashKey(long[][] hashTable) {
         long key = 0;
-
         for (Coordinate crate : cratePosList) {
             key ^= hashTable[crate.y][crate.x];
         }
+        key ^= hashTable[playerPos.y][playerPos.x];
         this.key = key;
         return key;
     }

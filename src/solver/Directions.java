@@ -43,19 +43,4 @@ enum Directions {
                 return null;
         }
     }
-
-    public Integer getInt() {
-        switch (this) {
-            case UP:
-                return 0;
-            case RIGHT:
-                return 1;
-            case DOWN:
-                return 2;
-            case LEFT:
-                return 3;
-            default:
-                return null;
-        }
-    }
 }
