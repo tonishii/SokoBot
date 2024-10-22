@@ -9,6 +9,7 @@ public class State {
     public Board board;
     public Coordinate playerPos;
 
+    public int key;
     public State() {}
 
     public State(ArrayList<Coordinate> cratePosList, Board board, Coordinate playerPos) {
@@ -34,7 +35,7 @@ public class State {
 
         newState.board = newBoard;
         newState.playerPos = new Coordinate(this.playerPos.x, this.playerPos.y);
-
+        newState.key = this.key;
         return newState;
     }
 

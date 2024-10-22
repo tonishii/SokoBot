@@ -58,4 +58,14 @@ enum Directions {
                 return null;
         }
     }
+
+    // Returns the position of thing after going to the direction
+    public Coordinate goTow(Coordinate thing) {
+        return new Coordinate(thing.x + this.x, thing.y + this.y);
+    }
+
+    // Returns the position of thing after going to opposite direction
+    public Coordinate goOpp(Coordinate thing) {
+        return new Coordinate(thing.x - this.x, thing.y - this.y);
+    }
 }

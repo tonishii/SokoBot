@@ -34,5 +34,4 @@ public class Node {
         }
         return depth + h;
     }
-
 }
