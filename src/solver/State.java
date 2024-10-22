@@ -7,9 +7,7 @@ import java.util.HashSet;
 public class State {
     public ArrayList<Coordinate> cratePosList;
     public Board board;
-
     public Coordinate playerPos;
-    public int f;
 
     public State() {}
 
@@ -19,6 +17,7 @@ public class State {
         this.playerPos = playerPos;
     }
 
+    // Returns a deep copy of State
     public State copy() {
         State newState = new State();
 
