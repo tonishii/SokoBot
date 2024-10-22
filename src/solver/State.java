@@ -4,23 +4,43 @@ import java.util.ArrayList;
 import java.util.Objects;
 import java.util.HashSet;
 
-public class State implements Comparable<State> {
+public class State {
     public ArrayList<Coordinate> cratePosList;
     public Board board;
 
     public Coordinate playerPos;
     public ArrayList<Push> pushList;
     public int f;
+    public long key;
 
     public State() {}
 
-    public State(ArrayList<Coordinate> cratePosList, Board board, Coordinate playerPos, ArrayList<Push> pushList, int h) {
+    public State(ArrayList<Coordinate> cratePosList, Board board, Coordinate playerPos) {
         this.cratePosList = cratePosList;
         this.board = board;
         this.playerPos = playerPos;
-        this.pushList = pushList;
+        this.pushList = new ArrayList<>();
+    }
 
-        this.f = g() + h;
+    public void f(ArrayList<Coordinate> targetPosList) {
+        int min, h = 0;
+        for (Coordinate crate : this.cratePosList) {
+            min = Integer.MAX_VALUE;
+            for (Coordinate target : targetPosList)
+                min = Math.min(min, Math.abs(crate.x - target.x) + Math.abs(crate.y - target.y));
+            h += min;
+        }
+        this.f = pushList.size() + h;
+    }
+
+    public long getHashKey(long[][] hashTable) {
+        long key = 0;
+
+        for (Coordinate crate : cratePosList) {
+            key ^= hashTable[crate.y][crate.x];
+        }
+        this.key = key;
+        return key;
     }
 
     public State copy() {
@@ -54,14 +74,14 @@ public class State implements Comparable<State> {
             }
             System.out.println();
         }
+
+        System.out.println("Key: " + this.key);
     }
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;  // Check if same reference
-        if (o == null || getClass() != o.getClass()) return false;  // Check if types are the same
-
         State that = (State) o;
+
         // Compare crate positions
         return Objects.equals(new HashSet<Coordinate>(this.cratePosList), new HashSet<Coordinate>(that.cratePosList)) &&
                Objects.equals(playerPos, that.playerPos);
@@ -70,14 +90,5 @@ public class State implements Comparable<State> {
     @Override
     public int hashCode() {
         return Objects.hash(cratePosList, playerPos);
-    }
-
-    @Override
-    public int compareTo(State that) {
-        return Integer.compare(this.f, that.f);
-    }
-
-    public int g() {
-        return pushList.size();
     }
 }
