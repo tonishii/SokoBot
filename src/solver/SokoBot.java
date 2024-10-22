@@ -1,12 +1,6 @@
 package solver;
 
-import java.util.PriorityQueue;
-import java.util.Stack;
-import java.util.HashSet;
-import java.util.ArrayList;
-import java.util.Random;
-import java.util.Comparator;
-import java.util.HashMap;
+import java.util.*;
 
 import reader.FileReader;
 import reader.MapData;
@@ -174,24 +168,37 @@ public class SokoBot {
   }
 
   public static boolean isDeadlock (int x, int y, char[][] mapData) {
-    // Not deadlock if already in target
-    if (mapData[y][x] == BoardValues.TARGET.value)
+    if(mapData[y][x] == BoardValues.TARGET.value)
       return false;
+    for(Directions dir: Directions.values()) {
+      if (mapData[y + dir.y][x + dir.x] == BoardValues.WALL.value || mapData[y + dir.y][x + dir.x] == BoardValues.CRATE.value) {
+        if(mapData[y + dir.y][x + dir.x] == BoardValues.WALL.value
+        && mapData[y + dir.getSide().y][x + dir.getSide().x] == BoardValues.WALL.value)
+          return true;
+        else if((mapData[y + dir.y][x + dir.x] == BoardValues.WALL.value
+                && mapData[y + dir.getSide().y][x + dir.getSide().x] == BoardValues.CRATE.value) ||
+                (mapData[y + dir.y][x + dir.x] == BoardValues.CRATE.value
+                && mapData[y + dir.getSide().y][x + dir.getSide().x] == BoardValues.WALL.value))
+          return true;
+        else if(mapData[y + dir.y][x + dir.x] == BoardValues.CRATE.value
+                && mapData[y + dir.getOpposite().y][x + dir.getOpposite().x] == BoardValues.CRATE.value
+                && mapData[y + dir.getOpposite().getSide().y][x + dir.getOpposite().getSide().x] == BoardValues.WALL.value)
+          return true;
+      }
+    }/*
+    for(Directions dir: Directions.values()) {
 
-    for (Directions dir : Directions.values()) {
-      // Check if going into corner
-      if(mapData[y + dir.y][x + dir.x] == BoardValues.WALL.value
-      && mapData[y + dir.getSide().y][x + dir.getSide().x] == BoardValues.WALL.value)
-        return true;
     }
 
-    for (Directions dir: Directions.values()) {
-      // Check if
-      if (mapData[y + dir.y][x + dir.x] == BoardValues.CRATE.value
-          && mapData[y + dir.getOpposite().y][x + dir.getOpposite().x] == BoardValues.CRATE.value
-          && mapData[y + dir.getOpposite().getSide().y][x + dir.getOpposite().getSide().x] == BoardValues.WALL.value)
-        return true;
-    }
+    for(Directions dir : Directions.values()) {
+        if(mapData[y + dir.y][x + dir.x] == BoardValues.WALL.value) {
+          while (mapData[y + dir.getSide().y][x + dir.getSide().x] != BoardValues.WALL.value
+                  && mapData[y][x] != BoardValues.TARGET.value && mapData[y][x] != BoardValues.CRATE.value) {
+            if()
+          }
+          //mapData[y + dir.getSide().getOpposite().y][x + dir.getSide().getOpposite().y] != BoardValues.WALL.value
+        }
+      }*/
     return false;
   }
 
@@ -206,7 +213,7 @@ public class SokoBot {
           continue;
         }
 
-        // Iterate through each directions
+        // Iterate through each direction
         for (Directions dir : Directions.values()) {
           Directions opp_dir = dir.getOpposite();
 
@@ -216,6 +223,25 @@ public class SokoBot {
               s.board.mapData[box.y + opp_dir.y][box.x + opp_dir.x] != BoardValues.WALL.value &&
               !isDeadlock(box.x + opp_dir.x, box.y + opp_dir.y, s.board.mapData)) {
               pushList.add(new Push(s.cratePosList.indexOf(box), opp_dir));
+              /* ABANDONED
+              if((s.board.mapData[box.y + opp_dir.y + opp_dir.getSide().y][box.x + opp_dir.x + opp_dir.getSide().y] == BoardValues.WALL.value) &&
+                      (s.board.mapData[box.y + opp_dir.y + opp_dir.getSide().getOpposite().y][box.x + opp_dir.x + opp_dir.getSide().getOpposite().x] == BoardValues.WALL.value) &&
+                      s.board.itemData[box.y + opp_dir.y][box.x + opp_dir.x] != BoardValues.TARGET.value) {
+                int[] tunnel = {opp_dir.y, opp_dir.x};
+                while((s.board.mapData[box.y + tunnel[0] + opp_dir.getSide().y][box.x + tunnel[1] + opp_dir.getSide().x] == BoardValues.WALL.value ||
+                        s.board.mapData[box.y + tunnel[0] + opp_dir.getSide().getOpposite().y][box.x + tunnel[1] + opp_dir.getSide().getOpposite().x] == BoardValues.WALL.value) &&
+                        (s.board.mapData[box.y + tunnel[0] + opp_dir.getSide().y][box.x + tunnel[1] + opp_dir.x + opp_dir.getSide().x] == BoardValues.WALL.value ||
+                        s.board.mapData[box.y + tunnel[0] + opp_dir.getSide().getOpposite().y][box.x + tunnel[1] + opp_dir.x + opp_dir.getSide().getOpposite().x] == BoardValues.WALL.value) &&
+                        (s.board.itemData[box.y + tunnel[0]][box.x + tunnel[1]] != BoardValues.TARGET.value || s.board.itemData[box.y + tunnel[0]][box.x + tunnel[1]] == BoardValues.EMPTY.value))
+                {
+                  pushList.add(new Push(s.cratePosList.indexOf(box), opp_dir));
+                  //System.out.println("Crate: " + pushList.getLast().crateIndex + " Crate row: " + s.cratePosList.get(pushList.getLast().crateIndex).y + " Crate col: " + s.cratePosList.get(pushList.getLast().crateIndex).x + pushList.getLast().dir.getChar());
+                  tunnel[0] += opp_dir.y;
+                  tunnel[1] += opp_dir.x;
+                }
+                if(s.board.itemData[box.y + tunnel[0]][box.x + tunnel[1]] != BoardValues.WALL.value)
+                  pushList.add(new Push(s.cratePosList.indexOf(box), opp_dir));
+              }*/
           }
         }
       }
@@ -253,6 +279,8 @@ public class SokoBot {
 
     while (!frontier.isEmpty()) {
       Node next = frontier.poll();
+
+      // next.state.print(); // DEBUGGING
 
       if (visited.contains(next.state) == true) {
        continue;
@@ -383,7 +411,7 @@ public class SokoBot {
     this.initBoard = new Board(mapData, itemsData, width, height);
     this.initState = new State(cratePosList, initBoard, startPlayerPos);
 
-    Node resNode = ZAStar(initState, width, height, targetPosList);
+    Node resNode = AStar(initState, width, height, targetPosList);
 
     ArrayList<Push> pushList = new ArrayList<>();
 
