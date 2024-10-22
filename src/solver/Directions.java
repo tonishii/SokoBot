@@ -43,4 +43,19 @@ enum Directions {
                 return null;
         }
     }
+
+    public Directions getSide() {
+        switch (this) {
+            case UP:
+                return LEFT;
+            case RIGHT:
+                return UP;
+            case DOWN:
+                return RIGHT;
+            case LEFT:
+                return DOWN;
+            default:
+                return null;
+        }
+    }
 }

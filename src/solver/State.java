@@ -9,9 +9,7 @@ public class State {
     public Board board;
 
     public Coordinate playerPos;
-    public ArrayList<Push> pushList;
     public int f;
-    public long key;
 
     public State() {}
 
@@ -19,28 +17,6 @@ public class State {
         this.cratePosList = cratePosList;
         this.board = board;
         this.playerPos = playerPos;
-        this.pushList = new ArrayList<>();
-    }
-
-    public void f(ArrayList<Coordinate> targetPosList) {
-        int min, h = 0;
-        for (Coordinate crate : this.cratePosList) {
-            min = Integer.MAX_VALUE;
-            for (Coordinate target : targetPosList)
-                min = Math.min(min, Math.abs(crate.x - target.x) + Math.abs(crate.y - target.y));
-            h += min;
-        }
-        this.f = pushList.size() + h;
-    }
-
-    public long getHashKey(long[][] hashTable) {
-        long key = 0;
-        for (Coordinate crate : cratePosList) {
-            key ^= hashTable[crate.y][crate.x];
-        }
-        key ^= hashTable[playerPos.y][playerPos.x];
-        this.key = key;
-        return key;
     }
 
     public State copy() {
@@ -59,7 +35,6 @@ public class State {
 
         newState.board = newBoard;
         newState.playerPos = new Coordinate(this.playerPos.x, this.playerPos.y);
-        newState.pushList = new ArrayList<>(this.pushList);
 
         return newState;
     }
@@ -74,8 +49,6 @@ public class State {
             }
             System.out.println();
         }
-
-        System.out.println("Key: " + this.key);
     }
 
     @Override

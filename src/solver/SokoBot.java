@@ -3,10 +3,10 @@ package solver;
 import java.util.PriorityQueue;
 import java.util.Stack;
 import java.util.HashSet;
-import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.Random;
 import java.util.Comparator;
+import java.util.HashMap;
 
 import reader.FileReader;
 import reader.MapData;
@@ -18,6 +18,8 @@ public class SokoBot {
   private Coordinate startPlayerPos;
 
   private ArrayList<Coordinate> targetPosList;
+  private Random random;
+  private long[][] hashTable;
 
   public static boolean isEnd(State s) {
     for (Coordinate crate : s.cratePosList) {
@@ -25,33 +27,6 @@ public class SokoBot {
         return false;
     }
     return true;
-  }
-
-  public static State move(State prev, Push push, long[][] hashTable) {
-    State s = prev.copy();
-
-    // get the starting/origin pos of the box
-    Coordinate start_crate = s.cratePosList.get(push.crateIndex);
-
-    // get where the box should be
-    Coordinate dest_crate = push.pushCrate(start_crate);
-
-    s.key ^= hashTable[start_crate.y][start_crate.x];
-
-    // set the new position
-    s.cratePosList.set(push.crateIndex, dest_crate);
-
-    // reflect action in the board for player
-    s.board.itemData[s.playerPos.y][s.playerPos.x] = BoardValues.EMPTY.value;
-    s.playerPos = start_crate;
-    s.board.itemData[s.playerPos.y][s.playerPos.x] = BoardValues.PLAYER.value;
-
-    // then the crate
-    s.board.itemData[dest_crate.y][dest_crate.x] = BoardValues.CRATE.value;
-
-    s.key ^= hashTable[dest_crate.y][dest_crate.x];
-    s.pushList.add(push);
-    return s;
   }
 
   public static State move(State prev, Push push) {
@@ -73,42 +48,13 @@ public class SokoBot {
 
     // then the crate
     s.board.itemData[dest_crate.y][dest_crate.x] = BoardValues.CRATE.value;
-
-    s.pushList.add(push);
     return s;
   }
 
-  public static State unmove(State prev, long[][] hashTable) {
+  public static State unmove(State prev, Push prevPush) {
     State s = prev.copy();
 
     // undoing the latest push
-    Push prevPush = s.pushList.getLast();
-
-    // get the current index of the starting/origin pos of the box
-    Coordinate start_crate = s.cratePosList.get(prevPush.crateIndex);
-    Coordinate dest_crate = prevPush.undoPush(start_crate);
-
-    s.key ^= hashTable[start_crate.y][start_crate.x];
-    s.cratePosList.set(prevPush.crateIndex, dest_crate);
-
-    // reflect undo push on the board
-    s.board.itemData[s.playerPos.y][s.playerPos.x] = BoardValues.EMPTY.value;
-    s.playerPos = prevPush.undoPush(dest_crate);
-    s.board.itemData[s.playerPos.y][s.playerPos.x] = BoardValues.PLAYER.value;
-
-    s.board.itemData[start_crate.y][start_crate.x] = BoardValues.EMPTY.value;
-    s.board.itemData[dest_crate.y][dest_crate.x] = BoardValues.CRATE.value;
-
-    s.key ^= hashTable[dest_crate.y][dest_crate.x];
-    s.pushList.remove(prevPush);
-    return s;
-  }
-
-  public static State unmove(State prev) {
-    State s = prev.copy();
-
-    // undoing the latest push
-    Push prevPush = s.pushList.getLast();
 
     // get the current index of the starting/origin pos of the box
     Coordinate start_crate = s.cratePosList.get(prevPush.crateIndex);
@@ -123,8 +69,6 @@ public class SokoBot {
 
     s.board.itemData[start_crate.y][start_crate.x] = BoardValues.EMPTY.value;
     s.board.itemData[dest_crate.y][dest_crate.x] = BoardValues.CRATE.value;
-
-    s.pushList.remove(prevPush);
     return s;
   }
 
@@ -138,7 +82,6 @@ public class SokoBot {
 
     while (!frontier.isEmpty()) {
       PlayerPath currPath = frontier.poll();
-
       if (currPath.playerPos.equals(destPos)) {
         for (Character move : currPath.moveList) {
           sb.append(move);
@@ -177,7 +120,6 @@ public class SokoBot {
         }
 
         else if (resultPath.f < similarPath.f) {
-          System.out.println(similarPath.f + " " + resultPath.f);
           frontier.remove(similarPath);
           frontier.add(resultPath);
         }
@@ -231,6 +173,28 @@ public class SokoBot {
     }
   }
 
+  public static boolean isDeadlock (int x, int y, char[][] mapData) {
+    // Not deadlock if already in target
+    if (mapData[y][x] == BoardValues.TARGET.value)
+      return false;
+
+    for (Directions dir : Directions.values()) {
+      // Check if going into corner
+      if(mapData[y + dir.y][x + dir.x] == BoardValues.WALL.value
+      && mapData[y + dir.getSide().y][x + dir.getSide().x] == BoardValues.WALL.value)
+        return true;
+    }
+
+    for (Directions dir: Directions.values()) {
+      // Check if
+      if (mapData[y + dir.y][x + dir.x] == BoardValues.CRATE.value
+          && mapData[y + dir.getOpposite().y][x + dir.getOpposite().x] == BoardValues.CRATE.value
+          && mapData[y + dir.getOpposite().getSide().y][x + dir.getOpposite().getSide().x] == BoardValues.WALL.value)
+        return true;
+    }
+    return false;
+  }
+
   public static ArrayList<Push> getLegalPushes(State s, ReachValues[][] reach) {
       ArrayList<Push> pushList = new ArrayList<>();
 
@@ -249,7 +213,8 @@ public class SokoBot {
           // Check if nothing is in the way after a push and within reach of the player
           if (reach[box.y + dir.y][box.x + dir.x] == ReachValues.RSPACE  &&
               s.board.itemData[box.y + opp_dir.y][box.x + opp_dir.x] != BoardValues.CRATE.value &&
-              s.board.mapData[box.y + opp_dir.y][box.x + opp_dir.x] != BoardValues.WALL.value) {
+              s.board.mapData[box.y + opp_dir.y][box.x + opp_dir.x] != BoardValues.WALL.value &&
+              !isDeadlock(box.x + opp_dir.x, box.y + opp_dir.y, s.board.mapData)) {
               pushList.add(new Push(s.cratePosList.indexOf(box), opp_dir));
           }
         }
@@ -257,99 +222,20 @@ public class SokoBot {
       return pushList;
     }
 
-  public static ArrayList<Push> DFS(State initState, int width, int height) {
-    // Create the search tree in a DFS manner
-    ReachValues[][] reach = new ReachValues[height][width];
-    ArrayList<Push> legalPushes = new ArrayList<>();
-
-    HashSet<State> visited = new HashSet<>();
-    Stack<State> stateStack = new Stack<>();
-
-    stateStack.push(initState);
-
-    while (!stateStack.empty()) {
-      State currState = stateStack.pop();
-      visited.add(currState);
-
-      clearReach(reach, width, height);
-      playerReachablePos(currState.board, width, height, currState.playerPos, reach);
-      legalPushes = getLegalPushes(currState, reach);
-
-      for (Push legalPush : legalPushes) {
-        State resultState = move(currState, legalPush);
-
-        if (isEnd(resultState)) {
-          return resultState.pushList;
-        }
-
-        if (visited.contains(resultState) == false &&
-            stateStack.contains(resultState) == false) {
-          stateStack.push(resultState);
-        }
-      }
-    }
-    return null;
-  }
-
-  public static ArrayList<Push> ZobristDFS(State initState, int width, int height) {
-    // Create the search tree in a DFS manner
-    ReachValues[][] reach = new ReachValues[height][width];
-    ArrayList<Push> legalPushes = new ArrayList<>();
-
-    HashMap<Long, State> visited = new HashMap<>();
-    Stack<State> stateStack = new Stack<>();
-    long[][] hashTable = buildZobristTable(width, height);
-
-    // Put the initial state in to the hash
-    initState.getHashKey(hashTable);
-    stateStack.push(initState);
-
-    while (!stateStack.isEmpty()) {
-      State currState = stateStack.pop();
-      Long currKey = currState.key;
-      visited.put(currKey, currState);
-
-      clearReach(reach, width, height);
-      playerReachablePos(currState.board, width, height, currState.playerPos, reach);
-      legalPushes = getLegalPushes(currState, reach);
-
-      // Iterate through every possible action/push
-      for (Push legalPush : legalPushes) {
-        // Execute the push
-        State resultState = move(currState, legalPush, hashTable);
-
-        // Check if it is the goal state
-        if (isEnd(resultState)) {
-          return resultState.pushList;
-        }
-
-        // Get the hash key of the resulting state
-        long stateKey = resultState.getHashKey(hashTable);
-
-        // Only add to the frontier if we haven't already visited it
-        if (visited.containsKey(stateKey) == false &&
-            stateStack.contains(resultState) == false) {
-            stateStack.add(resultState);
-        }
-      }
-    }
-    return null;
-  }
-
-  public static long[][] buildZobristTable(int width, int height) {
-    Random random = new Random();
-    long[][] table = new long[height][width];
+  public long[][] buildZobristTable(int width, int height) {
+    this.random = new Random();
+    this.hashTable = new long[height][width];
 
     for (int i = 0; i < height; i++) {
       for (int j = 0; j < width; j++) {
-          table[i][j] = random.nextLong();
+          hashTable[i][j] = random.nextLong();
       }
     }
 
-    return table;
+    return hashTable;
   }
 
-  public static void clearReach(ReachValues[][] reach, int width, int height) {
+  public void clearReach(ReachValues[][] reach, int width, int height) {
     for (int i = 0; i < height; i++) {
       for (int j = 0; j < width; j++) {
         reach[i][j] = null;
@@ -357,68 +243,47 @@ public class SokoBot {
     }
   }
 
-  public static ArrayList<Push> ZAStar(State initState, int width, int height, ArrayList<Coordinate> targetPosList) {
-    // Create the search tree in a AStar manner
-    ArrayList<Push> legalPushes;
+  public Node AStar(State initState, int width, int height, ArrayList<Coordinate> targetPosList) {
     ReachValues[][] reach = new ReachValues[height][width];
+    PriorityQueue<Node> frontier = new PriorityQueue<>(Comparator.comparingInt(o -> o.f));
 
-    HashMap<Long, State> visited = new HashMap<>();
-    HashMap<Long, State> stateInFrontier = new HashMap<>();
+    HashSet<State> visited = new HashSet<>();
 
-    // Compare using f values
-    PriorityQueue<State> frontier = new PriorityQueue<>(Comparator.comparingInt(o -> o.f));
-
-    // Get the transposition table
-    long[][] table = buildZobristTable(width, height);
-
-    // Update the f value of the initial state
-    initState.f(targetPosList);
-
-    // Put the initial state in to the hash
-    stateInFrontier.put(initState.getHashKey(table), initState);
-    frontier.add(initState);
+    frontier.add(new Node(initState, null, null, 0, targetPosList));
 
     while (!frontier.isEmpty()) {
-      State currState = frontier.poll();
-      Long currKey = currState.key;
+      Node next = frontier.poll();
 
-      stateInFrontier.remove(currKey);
-      visited.put(currKey, currState);
+      if (visited.contains(next.state) == true) {
+       continue;
+      }
 
+      visited.add(next.state);
       clearReach(reach, width, height);
-      playerReachablePos(currState.board, width, height, currState.playerPos, reach);
-      legalPushes = getLegalPushes(currState, reach);
+      playerReachablePos(next.state.board, width, height, next.state.playerPos, reach);
 
-      // Iterate through every possible action/push
-      for (Push legalPush : legalPushes) {
-        // Execute the push
-        State resultState = move(currState, legalPush, table);
+      for (Push push : getLegalPushes(next.state, reach)) {
+        State resState = move(next.state, push);
+        Node resNode = new Node(resState, push, next, next.depth+1, targetPosList);
 
-        // Check if it is the goal state
-        if (isEnd(resultState)) {
-          return resultState.pushList;
+        if (isEnd(resState)) {
+          return resNode;
         }
 
-        // Update the resulting states f value
-        resultState.f(targetPosList);
+        if (visited.contains(resState)) {
+          continue;
+        }
 
-        // Get the hash key of the resulting state
-        long stateKey = resultState.getHashKey(table);
-
-        // Only add to the frontier if we haven't already visited it
-        if (visited.containsKey(stateKey) == false &&
-            stateInFrontier.containsKey(stateKey) == false) {
-          frontier.add(resultState);
-          stateInFrontier.put(stateKey, resultState);
-
-        } else if (stateInFrontier.containsKey(stateKey)) {
-          State similarState = stateInFrontier.get(stateKey);
-
-          if (resultState.f < similarState.f) {
-            frontier.remove(similarState);
-            frontier.add(resultState);
-
-            stateInFrontier.replace(stateKey, similarState, resultState);
+        if (!frontier.contains(resNode)) {
+          frontier.add(resNode);
+        } else {
+          Node simNode = frontier.stream()
+                              .filter(o -> o.equals(resNode))
+                              .findFirst()
+                              .orElse(null);
+          if (resNode.f < simNode.f) {
+            frontier.remove(simNode);
+            frontier.add(resNode);
           }
         }
       }
@@ -426,54 +291,78 @@ public class SokoBot {
     return null;
   }
 
-  public static ArrayList<Push> AStar(State initState, int width, int height, ArrayList<Coordinate> targetPosList) {
-    // Create the search tree in a AStar manner
-    ArrayList<Push> legalPushes = new ArrayList<>();
+  public long getHashKey(ArrayList<Coordinate> cratePosList) {
+    long key = 0;
+    for (Coordinate crate : cratePosList) {
+        key ^= this.hashTable[crate.y][crate.x];
+    }
+    return key;
+}
+
+  public Node ZAStar(State initState, int width, int height, ArrayList<Coordinate> targetPosList) {
     ReachValues[][] reach = new ReachValues[height][width];
+    PriorityQueue<Node> frontier = new PriorityQueue<>(Comparator.comparingInt(o -> o.f));
+    HashMap<Long, Node> nodeInFrontier = new HashMap<>();
+    HashSet<Long> visited = new HashSet<>();
 
-    HashSet<State> visited = new HashSet<>();
-    PriorityQueue<State> frontier = new PriorityQueue<>(Comparator.comparingInt(o -> o.f));
+    this.hashTable = buildZobristTable(width, height);
+    Node initNode = new Node(initState, null, null, 0, targetPosList);
 
-    initState.f(targetPosList);
-    frontier.add(initState);
+    frontier.add(initNode);
+    nodeInFrontier.put(getHashKey(initState.cratePosList), initNode);
 
     while (!frontier.isEmpty()) {
-      State currState = frontier.poll();
-      visited.add(currState);
+      Node next = frontier.poll();
+      State nextState = next.state;
+      long nextKey = getHashKey(nextState.cratePosList);
+
+      if (visited.contains(nextKey) == true) {
+       continue;
+      }
+
+      nodeInFrontier.remove(nextKey);
+      visited.add(nextKey);
 
       clearReach(reach, width, height);
-      playerReachablePos(currState.board, width, height, currState.playerPos, reach);
-      legalPushes = getLegalPushes(currState, reach);
+      playerReachablePos(nextState.board, width, height, nextState.playerPos, reach);
 
-      for (Push legalPush : legalPushes) {
-        State resultState = move(currState, legalPush);
+      for (Push push : getLegalPushes(nextState, reach)) {
+        State resState = move(nextState, push);
+        Node resNode = new Node(resState, push, next, next.depth+1, targetPosList);
 
-        if (isEnd(resultState)) {
-          return resultState.pushList;
+        long resKey = getHashKey(resState.cratePosList);
+
+        if (isEnd(resState)) {
+          return resNode;
         }
 
-        resultState.f(targetPosList);
-
-        if (visited.contains(resultState) == false &&
-          frontier.contains(resultState) == false) {
-          frontier.add(resultState);
-        }
-
-        State similarState = frontier.stream()
-                                  .filter(state -> state.equals(resultState))
-                                  .findFirst()
-                                  .orElse(null);
-        if (similarState == null)
+        if (visited.contains(resKey)) {
           continue;
+        }
 
-        else if (resultState.f < similarState.f) {
-          frontier.remove(similarState);
-          frontier.add(resultState);
+        if (!nodeInFrontier.containsKey(resKey)) {
+          frontier.add(resNode);
+        } else {
+          Node simNode = nodeInFrontier.get(resKey);
+
+          if (resNode.f < simNode.f) {
+            frontier.remove(simNode);
+            frontier.add(resNode);
+
+            nodeInFrontier.replace(resKey, simNode, resNode);
+          }
         }
       }
     }
-
     return null;
+  }
+
+  public void getPushList(Node node, ArrayList<Push> pushList) {
+    if (node != null) {
+      getPushList(node.previous, pushList);
+      if (node.push != null)
+        pushList.add(node.push);
+    }
   }
 
   public String solveSokobanPuzzle(int width, int height, char[][] mapData, char[][] itemsData) {
@@ -494,10 +383,11 @@ public class SokoBot {
     this.initBoard = new Board(mapData, itemsData, width, height);
     this.initState = new State(cratePosList, initBoard, startPlayerPos);
 
-    // ArrayList<Push> pushList = ZobristDFS(initState, width, height);
-    // ArrayList<Push> pushList = DFS(initState, width, height);
-    // ArrayList<Push> pushList = AStar(initState, width, height, targetPosList);
-    ArrayList<Push> pushList = ZAStar(initState, width, height, targetPosList);
+    Node resNode = ZAStar(initState, width, height, targetPosList);
+
+    ArrayList<Push> pushList = new ArrayList<>();
+
+    getPushList(resNode, pushList);
 
     StringBuilder sb = new StringBuilder();
     Coordinate currPlayerPos = initState.playerPos;
@@ -591,10 +481,8 @@ public class SokoBot {
       System.out.println("Crate: " + coordinate.x + " " + coordinate.y);
     }
 
-    ArrayList<Push> pushList = new ArrayList<>();
-    Board board = new Board(map, items, columns, rows);
-
-    System.out.println("Current player position: " + playerPos.x + " " + playerPos.y);
+    // Board board = new Board(map, items, columns, rows);
+    // System.out.println("Current player position: " + playerPos.x + " " + playerPos.y);
 
     // TESTING ZONE
     // rows - row of board
@@ -607,99 +495,48 @@ public class SokoBot {
     // pushList - list of current pushes
     // cratePosList - list of crate positions
 
-    for (int i = 0; i < rows; i++) {
-      for (int j = 0; j < columns; j++) {
-        System.out.print(map[i][j] + " ");
-      }
-      System.out.println();
-    }
-
-    State initstate = new State(cratePosList, board, playerPos);
-
-    // ReachValues[][] reach = new ReachValues[rows][columns];
-    // playerReachablePos(board, columns, rows, playerPos, reach);
-    // pushList = getLegalPushes(initstate, reach);
-
-    // initstate.print();
-    // State newState = move(initstate, pushList.get(0), table);
-    // newState.print();
-    // newState = unmove(newState, table);
-    // newState.print();
-
     // for (int i = 0; i < rows; i++) {
     //   for (int j = 0; j < columns; j++) {
-    //     if (reach[i][j] == ReachValues.RCRATE)
-    //     System.out.print("0 ");
-    //     else if (reach[i][j] == ReachValues.RSPACE)
-    //     System.out.print(". ");
-    //     else if (reach[i][j] == null)
-    //     System.out.print("X ");
+    //     System.out.print(map[i][j] + " ");
     //   }
     //   System.out.println();
     // }
 
-    // System.out.println(mapName + " algorithm performance: ");
-    // Performance data1 = new Performance("DFS");
-    // long startTime1 = System.nanoTime();
-    // pushList = DFS(initstate, columns, rows, data1);
-    // long endTime1 = System.nanoTime();
-    // data1.print();
-    // System.out.println("Time taken (in ms): " + ((endTime1 - startTime1) / 1000000));
-    // System.out.println("Number of pushes needed: " + pushList.size() + '\n');
+    // State initstate = new State(cratePosList, board, playerPos);
+    // initstate.print();
 
-    long startTime2 = System.nanoTime();
-    pushList = AStar(initstate, columns, rows, targetPosList);
-    long endTime2 = System.nanoTime();
-    System.out.println("Time taken (in ms): " + ((endTime2 - startTime2) / 1000000));
-    // test
-    // boolean[][] reach = new boolean[mapData.rows][mapData.columns];
+    // long startTime2 = System.nanoTime();
+    // Node resNode = AStar(initstate, columns, rows, targetPosList);
+    // long endTime2 = System.nanoTime();
+    // System.out.println("Time taken (in ms): " + ((endTime2 - startTime2) / 1000000));
+
     // StringBuilder sb = new StringBuilder();
     // Coordinate currPlayerPos = initstate.playerPos;
-    // Board currBoard = initstate.board;
+    // Board currBoard = board;
 
-    // for (Push push : pushList) {
+    // Node node = resNode;
+    // Push push = resNode.push;
+
+    // while (node != null) {
     //   // get starting position of crate and player
-    //   Coordinate destPlayerPos = push.undoPush(initstate.cratePosList.get(push.crateIndex));
+    //   System.out.println("Crate: " + (push.crateIndex + 1) + " "+ push.dir + " Pos: " + cratePosList.get(push.crateIndex).toString());
+
+    //   Coordinate destPlayerPos = push.undoPush(cratePosList.get(push.crateIndex));
+    //   System.out.println("DEST: " + destPlayerPos.toString());
     //   currPlayerPos = solveHelper(currBoard, columns, rows, currPlayerPos, destPlayerPos, sb);
     //   sb.append(push.dir.getChar());
 
     //   // set the new coordinate values
-    //   initstate.cratePosList.set(push.crateIndex, push.pushCrate(initstate.cratePosList.get(push.crateIndex)));
+    //   cratePosList.set(push.crateIndex, push.pushCrate(cratePosList.get(push.crateIndex)));
     //   currPlayerPos = new Coordinate(currPlayerPos.x + push.dir.x, currPlayerPos.y + push.dir.y);
 
     //   // reflect onto the board
-    //   Coordinate currCratePos = initstate.cratePosList.get(push.crateIndex);
-    //   board.itemData[currPlayerPos.y][currPlayerPos.x] = BoardValues.PLAYER.value;
-    //   board.itemData[currCratePos.y][currCratePos.x] = BoardValues.CRATE.value;
-    // }
+    //   Coordinate currCratePos = cratePosList.get(push.crateIndex);
+    //   currBoard.itemData[currPlayerPos.y][currPlayerPos.x] = BoardValues.PLAYER.value;
+    //   currBoard.itemData[currCratePos.y][currCratePos.x] = BoardValues.CRATE.value;
 
-    // s.board.itemData[s.playerPos.y][s.playerPos.x] = BoardValues.EMPTY.value;
-    // s.playerPos = start_crate;
-    // s.board.itemData[s.playerPos.y][s.playerPos.x] = BoardValues.PLAYER.value;
-
-    // // then the crate
-    // s.board.itemData[dest_crate.y][dest_crate.x] = BoardValues.CRATE.value;
-    //   playerReachablePos(initstate.board, playerPos, reach);
-    //   // society
-    //   System.out.println(SolveHelper(initstate.board, playerPos, reach, cratePosList.get(push.crateIndex), push.dir.getInt()));
-    //   initstate.board.itemData[cratePosList.get(push.crateIndex).y][cratePosList.get(push.crateIndex).x] = BoardValues.PLAYER.value;
-    //   initstate.board.itemData[cratePosList.get(push.crateIndex).y + push.dir.y][cratePosList.get(push.crateIndex).x + push.dir.x] = BoardValues.CRATE.value;
-    //   initstate.board.mapData[cratePosList.get(push.crateIndex).y][cratePosList.get(push.crateIndex).x] = BoardValues.PLAYER.value;
-    //   initstate.board.mapData[cratePosList.get(push.crateIndex).y + push.dir.y][cratePosList.get(push.crateIndex).x + push.dir.x] = BoardValues.CRATE.value;
-    //   Coordinate boxMoved = cratePosList.get(push.crateIndex);
-    //   cratePosList.remove(boxMoved);
-    //   playerPos = boxMoved;
-    //   boxMoved.y += push.dir.y;
-    //   boxMoved.x += push.dir.x;
-    //   cratePosList.add(push.crateIndex, boxMoved);
-    // }
-
-    // for (Push push : pushList) {
-    //   System.out.println("Crate " + (push.crateIndex + 1) + ": " + push.dir);
-      // playerReachablePos(initstate.board, playerPos, reach);
-      // System.out.println(pathfinding(initstate.board, playerPos, reach, cratePosList.get(push.crateIndex), push.dir.getInt()));
-      // cratePosList.add(push.crateIndex, new Coordinate(cratePosList.get(push.crateIndex).x + push.dir.x, cratePosList.get(push.crateIndex).y + push.dir.y));
-      // playerPos = cratePosList.get(push.crateIndex);
+    //   node = node.previous;
+    //   push = node.push;
     // }
   }
 }
