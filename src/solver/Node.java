@@ -6,6 +6,7 @@ public class Node {
     public State state;
     public Push push;
 
+    // previous == predecessor
     public Node previous;
     public int depth;
     public int f;
@@ -19,6 +20,10 @@ public class Node {
         this.f = f(targetPosList);
     }
 
+    // Returns the f value if the current node
+    // f values indicates the priority in the pq
+    // h estimates the least number of pushes it takes to get to the nearest target
+    // g is the current depth of the node in the tree
     public int f(ArrayList<Coordinate> targetPosList) {
         int min, h = 0;
         for (Coordinate crate : this.state.cratePosList) {
