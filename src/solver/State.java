@@ -2,14 +2,13 @@ package solver;
 
 import java.util.ArrayList;
 import java.util.Objects;
-import java.util.HashSet;
 
 public class State {
     public ArrayList<Coordinate> cratePosList;
     public Board board;
     public Coordinate playerPos;
 
-    public int key;
+    public long key;
     public State() {}
 
     public State(ArrayList<Coordinate> cratePosList, Board board, Coordinate playerPos) {
@@ -26,15 +25,14 @@ public class State {
         for (Coordinate pos : this.cratePosList)
             newState.cratePosList.add(new Coordinate(pos.x, pos.y));
 
-        Board newBoard = new Board();
-        newBoard.itemData = new char[this.board.itemData.length][this.board.itemData[0].length];
-        for (int i = 0; i < this.board.itemData.length; i++) {
+        Board newBoard = new Board(this.board.mapData, this.board.width, this.board.height);
+        newBoard.itemData = new char[newBoard.height][newBoard.width];
+        for (int i = 0; i < newBoard.height; i++) {
             newBoard.itemData[i] = this.board.itemData[i].clone();
         }
-        newBoard.mapData = this.board.mapData;
-
         newState.board = newBoard;
-        newState.playerPos = new Coordinate(this.playerPos.x, this.playerPos.y);
+
+        newState.playerPos = this.playerPos;
         newState.key = this.key;
         return newState;
     }
@@ -56,7 +54,7 @@ public class State {
         State that = (State) o;
 
         // Compare crate positions
-        return Objects.equals(new HashSet<Coordinate>(this.cratePosList), new HashSet<Coordinate>(that.cratePosList)) &&
+        return Objects.equals(this.cratePosList, that.cratePosList) &&
                Objects.equals(playerPos, that.playerPos);
     }
 

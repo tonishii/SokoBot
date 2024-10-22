@@ -15,4 +15,10 @@ public class Board {
     this.width = width;
     this.height = height;
   }
+
+  public Board(char[][] mapData,  int width, int height) {
+    this.mapData = mapData;
+    this.width = width;
+    this.height = height;
+  }
 }

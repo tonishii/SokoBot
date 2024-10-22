@@ -62,6 +62,9 @@ public class SokoBot {
     s.key ^= hashTable[start_crate.y][start_crate.x];
     s.key ^= hashTable[dest_crate.y][dest_crate.x];
 
+    // s.key ^= hashTable[s.playerPos.y][s.playerPos.x];
+    // s.key ^= hashTable[start_crate.y][start_crate.x];
+
     // set the new position of the crate
     s.cratePosList.set(push.crateIndex, dest_crate);
 
@@ -207,20 +210,10 @@ public class SokoBot {
     if (mapData[y][x] == BoardValues.TARGET.value)
       return false;
     for(Directions dir: Directions.values()) {
-      if (mapData[y + dir.y][x + dir.x] == BoardValues.WALL.value || mapData[y + dir.y][x + dir.x] == BoardValues.CRATE.value) {
-        if(mapData[y + dir.y][x + dir.x] == BoardValues.WALL.value
-        && mapData[y + dir.getSide().y][x + dir.getSide().x] == BoardValues.WALL.value)
-          return true;
-        else if((mapData[y + dir.y][x + dir.x] == BoardValues.WALL.value
-                && mapData[y + dir.getSide().y][x + dir.getSide().x] == BoardValues.CRATE.value) ||
-                (mapData[y + dir.y][x + dir.x] == BoardValues.CRATE.value
-                && mapData[y + dir.getSide().y][x + dir.getSide().x] == BoardValues.WALL.value))
-          return true;
-        else if(mapData[y + dir.y][x + dir.x] == BoardValues.CRATE.value
-                && mapData[y + dir.getOpposite().y][x + dir.getOpposite().x] == BoardValues.CRATE.value
-                && mapData[y + dir.getOpposite().getSide().y][x + dir.getOpposite().getSide().x] == BoardValues.WALL.value)
-          return true;
-      }
+      if(mapData[y + dir.y][x + dir.x] == BoardValues.WALL.value &&
+      mapData[y + dir.getSide().y][x + dir.getSide().x] == BoardValues.WALL.value)
+
+      return true;
     }
     return false;
   }
@@ -251,44 +244,11 @@ public class SokoBot {
               s.board.mapData[oppY][oppX] != BoardValues.WALL.value &&
               !isDeadlock(oppX, oppY, s.board.mapData)) {
               pushList.add(new Push(s.cratePosList.indexOf(box), opp_dir));
-              /* ABANDONED
-              if((s.board.mapData[box.y + opp_dir.y + opp_dir.getSide().y][box.x + opp_dir.x + opp_dir.getSide().y] == BoardValues.WALL.value) &&
-                      (s.board.mapData[box.y + opp_dir.y + opp_dir.getSide().getOpposite().y][box.x + opp_dir.x + opp_dir.getSide().getOpposite().x] == BoardValues.WALL.value) &&
-                      s.board.itemData[box.y + opp_dir.y][box.x + opp_dir.x] != BoardValues.TARGET.value) {
-                int[] tunnel = {opp_dir.y, opp_dir.x};
-                while((s.board.mapData[box.y + tunnel[0] + opp_dir.getSide().y][box.x + tunnel[1] + opp_dir.getSide().x] == BoardValues.WALL.value ||
-                        s.board.mapData[box.y + tunnel[0] + opp_dir.getSide().getOpposite().y][box.x + tunnel[1] + opp_dir.getSide().getOpposite().x] == BoardValues.WALL.value) &&
-                        (s.board.mapData[box.y + tunnel[0] + opp_dir.getSide().y][box.x + tunnel[1] + opp_dir.x + opp_dir.getSide().x] == BoardValues.WALL.value ||
-                        s.board.mapData[box.y + tunnel[0] + opp_dir.getSide().getOpposite().y][box.x + tunnel[1] + opp_dir.x + opp_dir.getSide().getOpposite().x] == BoardValues.WALL.value) &&
-                        (s.board.itemData[box.y + tunnel[0]][box.x + tunnel[1]] != BoardValues.TARGET.value || s.board.itemData[box.y + tunnel[0]][box.x + tunnel[1]] == BoardValues.EMPTY.value))
-                {
-                  pushList.add(new Push(s.cratePosList.indexOf(box), opp_dir));
-                  //System.out.println("Crate: " + pushList.getLast().crateIndex + " Crate row: " + s.cratePosList.get(pushList.getLast().crateIndex).y + " Crate col: " + s.cratePosList.get(pushList.getLast().crateIndex).x + pushList.getLast().dir.getChar());
-                  tunnel[0] += opp_dir.y;
-                  tunnel[1] += opp_dir.x;
-                }
-                if(s.board.itemData[box.y + tunnel[0]][box.x + tunnel[1]] != BoardValues.WALL.value)
-                  pushList.add(new Push(s.cratePosList.indexOf(box), opp_dir));
-              }*/
           }
         }
       }
       return pushList;
     }
-
-  // Returns the transposition table for the hashing
-  public long[][] buildZobristTable(int width, int height) {
-    this.random = new Random();
-    this.hashTable = new long[height][width];
-
-    for (int i = 0; i < height; i++) {
-      for (int j = 0; j < width; j++) {
-          hashTable[i][j] = random.nextLong();
-      }
-    }
-
-    return hashTable;
-  }
 
   // Clears the ReachValue 2D array to null
   public void clearReach(ReachValues[][] reach, int width, int height) {
@@ -312,7 +272,7 @@ public class SokoBot {
     while (!frontier.isEmpty()) {
       Node next = frontier.poll();
 
-      if (visited.contains(next.state) == true) {
+      if (visited.contains(next.state)) {
         continue;
       }
 
@@ -351,14 +311,27 @@ public class SokoBot {
     return null;
   }
 
+  // Returns the transposition table for the hashing
+  public long[][] buildZobristTable(int width, int height) {
+    this.random = new Random();
+    this.hashTable = new long[height][width];
+
+    for (int i = 0; i < height; i++) {
+      for (int j = 0; j < width; j++) {
+          hashTable[i][j] = random.nextLong();
+      }
+    }
+    return hashTable;
+  }
+
   // Zobrist hash key generator which uses the position of each crate to generate the key
-  public long getHashKey(ArrayList<Coordinate> cratePosList) {
+  public long getHashKey(ArrayList<Coordinate> cratePosList, Coordinate playerPos) {
     long key = 0;
     for (Coordinate crate : cratePosList) {
         key ^= this.hashTable[crate.y][crate.x];
     }
     return key;
-}
+  }
 
   // Finds the push-optimal soltuion of the current game using
   // Astar search and Zobrist hashing
@@ -370,27 +343,20 @@ public class SokoBot {
     HashMap<Long, State> visited = new HashMap<>();
 
     this.hashTable = buildZobristTable(width, height);
+
+    initState.key = getHashKey(initState.cratePosList, initState.playerPos);
     Node initNode = new Node(initState, null, null, 0, targetPosList);
 
     frontier.add(initNode);
-    nodeInFrontier.put(getHashKey(initState.cratePosList), initNode);
+    nodeInFrontier.put(initState.key, initNode);
 
     while (!frontier.isEmpty()) {
-      Node next = frontier.poll();
-      State nextState = next.state;
+      Node nextNode = frontier.poll();
+      State nextState = nextNode.state;
       long nextKey = nextState.key;
 
-      // nextState.print();
-
-      // try {
-      //   Thread.sleep(1500);
-      // } catch (InterruptedException e) {
-      //   // TODO Auto-generated catch block
-      //   e.printStackTrace();
-      // }
-
-      if (visited.containsKey(nextKey) == true) {
-       continue;
+      if (visited.containsKey(nextKey)) {
+        continue;
       }
 
       nodeInFrontier.remove(nextKey);
@@ -400,27 +366,26 @@ public class SokoBot {
       playerReachablePos(nextState.board, width, height, nextState.playerPos, reach);
 
       for (Push push : getLegalPushes(nextState, reach)) {
-        State resState = move(nextState, push/*, this.hashTable*/);
-        Node resNode = new Node(resState, push, next, next.depth+1, targetPosList);
+        State resState = move(nextState, push, this.hashTable);
+        Node resNode = new Node(resState, push, nextNode, nextNode.depth+1, targetPosList);
         long resKey = resState.key;
 
         if (isEnd(resState)) {
           return resNode;
         }
 
-        if (visited.containsKey(resKey)) {
-          continue;
-        }
-
-        if (!nodeInFrontier.containsKey(resKey)) {
-          frontier.add(resNode);
-        } else {
-          Node simNode = nodeInFrontier.get(resKey);
-          if (resNode.f < simNode.f) {
-            frontier.remove(simNode);
+        if (!visited.containsKey(resKey)) {
+          if (!nodeInFrontier.containsKey(resKey)) {
             frontier.add(resNode);
+            nodeInFrontier.put(resKey, resNode);
+          } else {
+            Node simNode = nodeInFrontier.get(resKey);
+            if (resNode.f < simNode.f) {
+              frontier.remove(simNode);
+              frontier.add(resNode);
 
-            nodeInFrontier.replace(resKey, simNode, resNode);
+              nodeInFrontier.replace(resKey, simNode, resNode);
+            }
           }
         }
       }
