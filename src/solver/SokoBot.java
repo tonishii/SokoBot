@@ -12,6 +12,7 @@ public class SokoBot {
   private Board initBoard;
   private Coordinate startPlayerPos;
   private ArrayList<Coordinate> targetPosList;
+  private boolean[][] TunnelMacroPos;
 
   // Used for zobrist hashing
   private Random random;
@@ -225,7 +226,14 @@ public class SokoBot {
               s.board.itemData[oppY][oppX] != BoardValues.CRATE.value &&
               s.board.mapData[oppY][oppX] != BoardValues.WALL.value &&
               !isDeadlock(oppX, oppY, s.board.mapData)) {
-              pushList.add(new Push(s.cratePosList.indexOf(box), opp_dir));
+                pushList.add(new Push(s.cratePosList.indexOf(box), opp_dir));
+                int currX = oppX;
+                int currY = oppY;
+                while (TunnelMacroPos[currY][currX] == true && TunnelMacroPos[currY + opp_dir.y][currX + opp_dir.x] == true && !isDeadlock(currX, currY, s.board.mapData)) {
+                  pushList.add(new Push(s.cratePosList.indexOf(box), opp_dir));
+                  currY += opp_dir.y;
+                  currX += opp_dir.x;
+            }
           }
         }
       }
@@ -388,8 +396,8 @@ public class SokoBot {
 
   public String solveSokobanPuzzle(int width, int height, char[][] mapData, char[][] itemsData) {
     ArrayList<Coordinate> cratePosList = new ArrayList<>();
-    HashSet<Coordinate> TunnelMacroPos = new HashSet<>();
     this.targetPosList = new ArrayList<>();
+    this.TunnelMacroPos = new boolean[height][width];
 
     for (int i = 0; i < height; i++) {
       for (int j = 0; j < width; j++) {
@@ -400,10 +408,35 @@ public class SokoBot {
         if (itemsData[i][j] == BoardValues.PLAYER.value)
           this.startPlayerPos = new Coordinate(j, i);
         for (Directions dir : Directions.values()) {
-          if ((mapData[i][j] == BoardValues.WALL.value && mapData[i+dir.y][j+dir.x] == BoardValues.EMPTY.value && mapData[i+(2*dir.y)][j+(2*dir.x)] == BoardValues.WALL.value) ||
-                  (mapData[i][j] == BoardValues.EMPTY.value && mapData[i+dir.y][j+dir.x] == BoardValues.EMPTY.value && mapData[i+(2*dir.y)][j+(2*dir.x)] == BoardValues.WALL.value) ||
-                  (mapData[i][j] == BoardValues.WALL.value && mapData[i+dir.y][j+dir.x] == BoardValues.EMPTY.value && mapData[i+(2*dir.y)][j+(2*dir.x)] == BoardValues.EMPTY.value)){
-            TunnelMacroPos.add(new Coordinate(j+dir.x, i+dir.y));
+          if ((i+(dir.y)>0 && j+(dir.x)>0) && (i+(dir.y)<height && j+(dir.x)<width) && (i+(2*dir.y)<height && j+(2*dir.x)<width)) {
+            if ((i+(dir.getOpposite().y)>0 && j+(dir.getOpposite().x)>0) && (i+(dir.getOpposite().y)<height && j+(dir.getOpposite().x)<width) && (i+(2*dir.getOpposite().y)<height && j+(2*dir.x)<width)){
+              if (mapData[i][j] == BoardValues.WALL.value && mapData[i + dir.y][j + dir.x] == BoardValues.EMPTY.value && mapData[i + (2 * dir.y)][j + (2 * dir.x)] == BoardValues.WALL.value) {
+                /*if ((map[i + dir.getOpposite().y][j + dir.getOpposite().x] == BoardValues.WALL.value && map[i + (2 * dir.getOpposite().y)][j + (2 * dir.getOpposite().x)] == BoardValues.WALL.value) ||
+                        (map[i + dir.getOpposite().y][j + dir.getOpposite().x] == BoardValues.EMPTY.value && map[i + (2 * dir.getOpposite().y)][j + (2 * dir.getOpposite().x)] == BoardValues.WALL.value) ||
+                        (map[i + dir.getOpposite().y][j + dir.getOpposite().x] == BoardValues.WALL.value && map[i + (2 * dir.getOpposite().y)][j + (2 * dir.getOpposite().x)] == BoardValues.EMPTY.value)) {*/
+                if (TunnelMacroPos[i + dir.y][j + dir.x] == false) {
+                  TunnelMacroPos[i + dir.y][j + dir.x] = true;
+                }
+
+              }/* else if (map[i][j] == BoardValues.EMPTY.value && map[i + dir.y][j + dir.x] == BoardValues.EMPTY.value && map[i + (2 * dir.y)][j + (2 * dir.x)] == BoardValues.WALL.value) {
+                /*if ((map[i + dir.getOpposite().y][j + dir.getOpposite().x] == BoardValues.WALL.value && map[i + (2 * dir.getOpposite().y)][j + (2 * dir.getOpposite().x)] == BoardValues.WALL.value) ||
+                        (map[i + dir.getOpposite().y][j + dir.getOpposite().x] == BoardValues.WALL.value && map[i + (2 * dir.getOpposite().y)][j + (2 * dir.getOpposite().x)] == BoardValues.EMPTY.value)) {
+                  if (!TunnelMacroPos.contains(new Coordinate(j + dir.x, i + dir.y))) {
+                    TunnelMacroPos.add(new Coordinate(j + dir.x, i + dir.y));
+                    map[i + dir.y][j + dir.x] = 't';
+                    System.out.println((j + dir.x) + " " + (i + dir.y));
+                  }
+
+              } else if (map[i][j] == BoardValues.WALL.value && map[i + dir.y][j + dir.x] == BoardValues.EMPTY.value && map[i + (2 * dir.y)][j + (2 * dir.x)] == BoardValues.EMPTY.value) {
+                /*if ((map[i + dir.getOpposite().y][j + dir.getOpposite().x] == BoardValues.WALL.value && map[i + (2 * dir.getOpposite().y)][j + (2 * dir.getOpposite().x)] == BoardValues.WALL.value) ||
+                        (map[i + dir.getOpposite().y][j + dir.getOpposite().x] == BoardValues.EMPTY.value && map[i + (2 * dir.getOpposite().y)][j + (2 * dir.getOpposite().x)] == BoardValues.WALL.value)) {
+                  if (!TunnelMacroPos.contains(new Coordinate(j + dir.x, i + dir.y))) {
+                    TunnelMacroPos.add(new Coordinate(j + dir.x, i + dir.y));
+                    map[i + dir.y][j + dir.x] = 't';
+                    System.out.println((j + dir.x) + " " + (i + dir.y));
+                  }
+              }*/
+            }
           }
         }
       }
@@ -490,7 +523,7 @@ public class SokoBot {
     int rows = mapData.rows;
     int columns = mapData.columns;
 
-    HashSet<Coordinate> TunnelMacroPos = new HashSet<>();
+    boolean[][] TunnelMacroPos = new boolean[rows][columns];
     for (int i = 0; i < rows; i++) {
       for (int j = 0; j < columns; j++) {
         for (Directions dir : Directions.values()) {
@@ -500,14 +533,17 @@ public class SokoBot {
                 /*if ((map[i + dir.getOpposite().y][j + dir.getOpposite().x] == BoardValues.WALL.value && map[i + (2 * dir.getOpposite().y)][j + (2 * dir.getOpposite().x)] == BoardValues.WALL.value) ||
                         (map[i + dir.getOpposite().y][j + dir.getOpposite().x] == BoardValues.EMPTY.value && map[i + (2 * dir.getOpposite().y)][j + (2 * dir.getOpposite().x)] == BoardValues.WALL.value) ||
                         (map[i + dir.getOpposite().y][j + dir.getOpposite().x] == BoardValues.WALL.value && map[i + (2 * dir.getOpposite().y)][j + (2 * dir.getOpposite().x)] == BoardValues.EMPTY.value)) {*/
-                  if (!TunnelMacroPos.contains(new Coordinate(j + dir.x, i + dir.y))) {
-                    TunnelMacroPos.add(new Coordinate(j + dir.x, i + dir.y));
+                  if (TunnelMacroPos[i+dir.y][j+dir.x]==false) {
+                    TunnelMacroPos[i+dir.y][j+dir.x] = true;
                     map[i + dir.y][j + dir.x] = 't';
-                    System.out.println((j + dir.x) + " " + (i + dir.y));
+                    System.out.println((j + dir.x)+" "+(i + dir.y));
+                    System.out.println(dir.getSide());
+                    System.out.println(dir.getOpposite().getSide());
+                    System.out.println(TunnelMacroPos[i+dir.y][j+dir.x]);
                   }
 
-              } else if (map[i][j] == BoardValues.EMPTY.value && map[i + dir.y][j + dir.x] == BoardValues.EMPTY.value && map[i + (2 * dir.y)][j + (2 * dir.x)] == BoardValues.WALL.value) {
-                if ((map[i + dir.getOpposite().y][j + dir.getOpposite().x] == BoardValues.WALL.value && map[i + (2 * dir.getOpposite().y)][j + (2 * dir.getOpposite().x)] == BoardValues.WALL.value) ||
+              }/* else if (map[i][j] == BoardValues.EMPTY.value && map[i + dir.y][j + dir.x] == BoardValues.EMPTY.value && map[i + (2 * dir.y)][j + (2 * dir.x)] == BoardValues.WALL.value) {
+                /*if ((map[i + dir.getOpposite().y][j + dir.getOpposite().x] == BoardValues.WALL.value && map[i + (2 * dir.getOpposite().y)][j + (2 * dir.getOpposite().x)] == BoardValues.WALL.value) ||
                         (map[i + dir.getOpposite().y][j + dir.getOpposite().x] == BoardValues.WALL.value && map[i + (2 * dir.getOpposite().y)][j + (2 * dir.getOpposite().x)] == BoardValues.EMPTY.value)) {
                   if (!TunnelMacroPos.contains(new Coordinate(j + dir.x, i + dir.y))) {
                     TunnelMacroPos.add(new Coordinate(j + dir.x, i + dir.y));
@@ -517,14 +553,13 @@ public class SokoBot {
 
               } else if (map[i][j] == BoardValues.WALL.value && map[i + dir.y][j + dir.x] == BoardValues.EMPTY.value && map[i + (2 * dir.y)][j + (2 * dir.x)] == BoardValues.EMPTY.value) {
                 /*if ((map[i + dir.getOpposite().y][j + dir.getOpposite().x] == BoardValues.WALL.value && map[i + (2 * dir.getOpposite().y)][j + (2 * dir.getOpposite().x)] == BoardValues.WALL.value) ||
-                        (map[i + dir.getOpposite().y][j + dir.getOpposite().x] == BoardValues.EMPTY.value && map[i + (2 * dir.getOpposite().y)][j + (2 * dir.getOpposite().x)] == BoardValues.WALL.value)) {*/
+                        (map[i + dir.getOpposite().y][j + dir.getOpposite().x] == BoardValues.EMPTY.value && map[i + (2 * dir.getOpposite().y)][j + (2 * dir.getOpposite().x)] == BoardValues.WALL.value)) {
                   if (!TunnelMacroPos.contains(new Coordinate(j + dir.x, i + dir.y))) {
                     TunnelMacroPos.add(new Coordinate(j + dir.x, i + dir.y));
                     map[i + dir.y][j + dir.x] = 't';
                     System.out.println((j + dir.x) + " " + (i + dir.y));
                   }
-
-              }
+              }*/
             }
           }
         }
