@@ -1,7 +1,7 @@
 package solver;
 
 import java.util.ArrayList;
-
+import java.util.Arrays;
 public class Node {
     public State state;
     public Push push;
@@ -32,6 +32,102 @@ public class Node {
                 min = Math.min(min, Math.abs(crate.x - target.x) + Math.abs(crate.y - target.y));
             h += min;
         }
-        return depth + h;
+        return depth + h;//hungarian(targetPosList);
+    }
+
+    public int hungarian(ArrayList<Coordinate> targetPosList) {
+        int numObj = targetPosList.size();
+
+        int[][] table = new int[numObj][numObj];
+        int[][] ogTable = new int[numObj][numObj];
+        int[] rowMin = new int[numObj];
+        int[] colMin = new int[numObj];
+
+        int min1 = 0;
+        Arrays.fill(colMin, Integer.MAX_VALUE);
+
+        ArrayList<Coordinate> cratePosList = this.state.cratePosList;
+        for (int i = 0; i < numObj; i++) {
+            min1 = Integer.MAX_VALUE;
+
+            for (int j = 0; j < numObj; j++) {
+                Coordinate crate = cratePosList.get(i);
+                Coordinate target = targetPosList.get(j);
+                table[i][j] = Math.abs(crate.x - target.x) + Math.abs(crate.y - target.y);
+                ogTable[i][j] = table[i][j];
+
+                min1 = Math.min(table[i][j], min1);
+            }
+            rowMin[i] = min1;
+        }
+
+        for (int i = 0; i < numObj; i++) {
+            for (int j = 0; j < numObj; j++) {
+                table[i][j] -= rowMin[i];
+                colMin[j] = Math.min(table[i][j], colMin[j]);
+            }
+        }
+
+        for (int i = 0; i < numObj; i++) {
+            for (int j = 0; j < numObj; j++) {
+                table[i][j] -= colMin[i];
+            }
+        }
+
+        int numLines = 0;
+        while (numLines < numObj) {
+            boolean[] rowCover = new boolean[numObj];
+            boolean[] colCover = new boolean[numObj];
+
+            for (int i = 0; i < numObj; i++) {
+                for (int j = 0; j < numObj; j++) {
+                    if (table[i][j] == 0 && !rowCover[i] && !colCover[j]) {
+                        rowCover[i] = true;
+                        colCover[j] = true;
+                    }
+                }
+            }
+
+            min1 = Integer.MAX_VALUE;
+            for (int i = 0; i < numObj; i++) {
+                if (rowCover[i] || colCover[i]) {
+                    numLines++;
+                }
+
+                if (!rowCover[i]) {
+                    for (int j = 0; j < numObj; j++) {
+                        if (!colCover[j]) {
+                            min1 = Math.min(table[i][j], min1);
+                        }
+                    }
+                }
+            }
+
+            if (numLines >= numObj) {
+                break;
+            }
+
+            for (int i = 0; i < numObj; i++) {
+                for (int j = 0; j < numObj; j++) {
+                    if (!rowCover[i] && !colCover[j]) {
+                        table[i][j] -= min1;
+                    } else if (rowCover[i] && colCover[j]) {
+                        table[i][j] += min1;
+                    }
+                }
+            }
+        }
+
+        int cost = 0;
+        for (int i = 0; i < numObj; i++) {
+            min1 = Integer.MAX_VALUE;
+            for (int j = 0; j < numObj; j++) {
+                if (table[i][j] == 0) {
+                    min1 = Math.min(ogTable[i][j], min1);
+                }
+            }
+            cost += min1;
+        }
+        return cost + 1;
     }
 }
