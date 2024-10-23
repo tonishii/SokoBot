@@ -1,5 +1,6 @@
 package solver;
 
+// Board stores the 2D representation of Sokoban
 public class Board {
   public char[][] mapData;
   public char[][] itemData;

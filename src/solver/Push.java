@@ -1,6 +1,6 @@
 package solver;
 
-// Push is an action which indicates which box is pushed and which direction
+// Push is an action which represents which box is pushed and towards what direction
 public class Push {
   public Integer crateIndex;
   public Directions dir;

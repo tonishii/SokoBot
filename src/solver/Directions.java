@@ -1,5 +1,6 @@
 package solver;
 
+// Directions contain all the possible directions a box/player can go
 enum Directions {
     UP(0, -1),
     RIGHT(1, 0),
@@ -14,6 +15,7 @@ enum Directions {
         this.y = y;
     }
 
+    // Returns the opposite of the direction
     public Directions getOpposite() {
         switch (this) {
             case UP:
@@ -29,6 +31,7 @@ enum Directions {
         }
     }
 
+    // Returns the character representation of the direction
     public Character getChar() {
         switch (this) {
             case UP:
@@ -44,22 +47,23 @@ enum Directions {
         }
     }
 
+    // Returns the side of the direction (counter-clockwise)
     public Directions getSide() {
         switch (this) {
             case UP:
                 return LEFT;
-            case RIGHT:
-                return UP;
-            case DOWN:
-                return RIGHT;
             case LEFT:
                 return DOWN;
+            case DOWN:
+                return RIGHT;
+            case RIGHT:
+                return UP;
             default:
                 return null;
         }
     }
 
-    // Returns the position of thing after going to the direction
+    // Returns the position of thing after going towards the direction
     public Coordinate goTow(Coordinate thing) {
         return new Coordinate(thing.x + this.x, thing.y + this.y);
     }

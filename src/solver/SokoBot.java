@@ -7,18 +7,18 @@ import reader.MapData;
 
 public class SokoBot {
 
-  // Store things that are constant
+  // Store things that are constant/static
   private State initState;
   private Board initBoard;
   private Coordinate startPlayerPos;
   private ArrayList<Coordinate> targetPosList;
 
-  // Used for zobrist hashing
-  private Random random;
-  private long[][][] hashTable;
-
   private int width;
   private int height;
+
+  // Used for Zobrist hashing
+  private Random random;
+  private long[][][] hashTable;
 
   // Returns if game is at goal state
   public boolean isEnd(State s) {
@@ -33,10 +33,8 @@ public class SokoBot {
   public State pushCrate(State prev, Push push) {
     State s = prev.copy();
 
-    // get the starting/origin pos of the box
+    // get the starting/origin and destination of the box
     Coordinate start_crate = s.cratePosList.get(push.crateIndex);
-
-    // get where the box should be
     Coordinate dest_crate = push.dir.goTow(start_crate);
 
     // set the new position of the crate
@@ -45,7 +43,7 @@ public class SokoBot {
     // reflect push/action in the board for player
     s.board.itemData[s.playerPos.y][s.playerPos.x] = BoardValues.EMPTY.value;
     s.playerPos = start_crate;
-    s.board.itemData[s.playerPos.y][s.playerPos.x] = BoardValues.PLAYER.value;
+    s.board.itemData[start_crate.y][start_crate.x] = BoardValues.PLAYER.value;
 
     // then the crate
     s.board.itemData[dest_crate.y][dest_crate.x] = BoardValues.CRATE.value;
@@ -53,14 +51,16 @@ public class SokoBot {
   }
 
   // Returns the state resulting after an action aka push
+  // also updates the hashKey of the current state based on the new positions of the crate and player position
   public State pushCrate(State prev, Push push, long[][][] hashTable) {
     State s = prev.copy();
 
-    // get the starting/origin pos of the box
+    // get the starting/origin and destination of the box
     Coordinate start_crate = s.cratePosList.get(push.crateIndex);
-
-    // get where the box should be
     Coordinate dest_crate = push.dir.goTow(start_crate);
+
+    // Update the hashKey by first undoing original XOR using old position and using new position to XOR
+    // Using the hash/transposition table (ofc)
 
     s.hashKey ^= hashTable[start_crate.y][start_crate.x][0];
     s.hashKey ^= hashTable[dest_crate.y][dest_crate.x][0];
@@ -81,18 +81,22 @@ public class SokoBot {
     return s;
   }
 
-  // Finds the shortest path to the destination using AStar
+  // Finds the shortest path to the destination using AStar and appends the path to the current move list string
   public Coordinate AStarPathfinder(Board board, Coordinate startPos, Coordinate destPos, StringBuilder sb) {
+
+    // initiate the closed/frontier and open set
     HashSet<Coordinate> visited = new HashSet<>();
     PriorityQueue<PlayerPath> frontier = new PriorityQueue<>(Comparator.comparingInt(o -> o.f));
 
-    PlayerPath initPath = new PlayerPath(new ArrayList<Character>(), startPos);
-    initPath.f = initPath.f(destPos);
-    frontier.add(initPath);
+    // add the initial starting position to the frontier
+    PlayerPath currPath = new PlayerPath(new ArrayList<Character>(), startPos);
+    currPath.f = currPath.f(destPos);   // don't forget to update the f value!!
+    frontier.add(currPath);
 
     while (!frontier.isEmpty()) {
-      PlayerPath currPath = frontier.poll();
+      currPath = frontier.poll();
 
+      // check if destination
       if (currPath.playerPos.equals(destPos)) {
         for (Character move : currPath.moveList) {
           sb.append(move);
@@ -100,15 +104,19 @@ public class SokoBot {
         return destPos;
       }
 
+      // add to the visited set
       visited.add(currPath.playerPos);
 
+      // go through each directions
       for (Directions dir : Directions.values()) {
-        Coordinate resultPos = new Coordinate(currPath.playerPos.x + dir.x, currPath.playerPos.y + dir.y);
 
-        PlayerPath resultPath = new PlayerPath(currPath.moveList, resultPos);
-        resultPath.moveList.add(dir.getChar());
-        resultPath.f = resultPath.f(destPos);
+        // get the resulting path and position
+        Coordinate resultPos = dir.goTow(currPath.playerPos);
+        PlayerPath resultPath = new PlayerPath(currPath.moveList, resultPos, dir.getChar());
 
+        resultPath.f = resultPath.f(destPos); // don't forget the f value
+
+        // check if out of bounds or if we've already visited it
         if (resultPos.y < 0 || resultPos.x < 0 ||
             resultPos.y >= this.height || resultPos.x >= this.width ||
             board.mapData[resultPos.y][resultPos.x] == BoardValues.WALL.value ||
@@ -119,20 +127,16 @@ public class SokoBot {
 
         if (!frontier.contains(resultPath)) {
           frontier.add(resultPath);
-          continue;
-        }
 
-        PlayerPath similarPath = frontier.stream()
-                                 .filter(path -> path.equals(resultPath))
-                                 .findFirst()
-                                 .orElse(null);
-        if (similarPath == null) {
-          continue;
-        }
-
-        else if (resultPath.f < similarPath.f) {
-          frontier.remove(similarPath);
-          frontier.add(resultPath);
+        } else { // it already exists in the frontier check if we can replace it
+          PlayerPath similarPath = frontier.stream()
+                                  .filter(o -> o.equals(resultPath))
+                                  .findFirst()
+                                  .orElse(null);
+          if (resultPath.f < similarPath.f) {
+            frontier.remove(similarPath);
+            frontier.add(resultPath);
+          }
         }
       }
     }

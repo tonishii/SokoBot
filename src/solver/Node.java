@@ -2,6 +2,9 @@ package solver;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Objects;
+
+// Node represents a node in the search tree for pushes
 public class Node {
     public State state;
     public Push push;
@@ -22,7 +25,7 @@ public class Node {
 
     // Returns the f value if the current node
     // f values indicates the priority in the pq
-    // h estimates the least number of pushes it takes to get to the nearest target
+    // h estimates the least number of pushes it takes to get to the goal state
     // g is the current depth of the node in the tree
     public int f(ArrayList<Coordinate> targetPosList) {
         int min, h = 0;
@@ -32,9 +35,11 @@ public class Node {
                 min = Math.min(min, Math.abs(crate.x - target.x) + Math.abs(crate.y - target.y));
             h += min;
         }
-        return depth + h;//hungarian(targetPosList);
+        return depth + h; //hungarian(targetPosList);
     }
 
+    // Our simple lower bound/heuristic currently ignores the fact that each crate has its own "best" position/target
+    // Using the hungarian algorithm we can get the most efficient crate-target pair
     public int hungarian(ArrayList<Coordinate> targetPosList) {
         int numObj = targetPosList.size();
 
@@ -129,5 +134,17 @@ public class Node {
             cost += min1;
         }
         return cost + 1;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        Node that = (Node) o;
+
+        return Objects.equals(this.state, that.state);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(this.state);
     }
 }
