@@ -7,18 +7,18 @@ import reader.MapData;
 
 public class SokoBot {
 
-  // Store things that are constant/static
+  // Store things that are constant
   private State initState;
   private Board initBoard;
   private Coordinate startPlayerPos;
   private ArrayList<Coordinate> targetPosList;
 
-  private int width;
-  private int height;
-
-  // Used for Zobrist hashing
+  // Used for zobrist hashing
   private Random random;
   private long[][][] hashTable;
+
+  private int width;
+  private int height;
 
   // Returns if game is at goal state
   public boolean isEnd(State s) {
@@ -33,8 +33,10 @@ public class SokoBot {
   public State pushCrate(State prev, Push push) {
     State s = prev.copy();
 
-    // get the starting/origin and destination of the box
+    // get the starting/origin pos of the box
     Coordinate start_crate = s.cratePosList.get(push.crateIndex);
+
+    // get where the box should be
     Coordinate dest_crate = push.dir.goTow(start_crate);
 
     // set the new position of the crate
@@ -43,7 +45,7 @@ public class SokoBot {
     // reflect push/action in the board for player
     s.board.itemData[s.playerPos.y][s.playerPos.x] = BoardValues.EMPTY.value;
     s.playerPos = start_crate;
-    s.board.itemData[start_crate.y][start_crate.x] = BoardValues.PLAYER.value;
+    s.board.itemData[s.playerPos.y][s.playerPos.x] = BoardValues.PLAYER.value;
 
     // then the crate
     s.board.itemData[dest_crate.y][dest_crate.x] = BoardValues.CRATE.value;
@@ -51,16 +53,14 @@ public class SokoBot {
   }
 
   // Returns the state resulting after an action aka push
-  // also updates the hashKey of the current state based on the new positions of the crate and player position
   public State pushCrate(State prev, Push push, long[][][] hashTable) {
     State s = prev.copy();
 
-    // get the starting/origin and destination of the box
+    // get the starting/origin pos of the box
     Coordinate start_crate = s.cratePosList.get(push.crateIndex);
-    Coordinate dest_crate = push.dir.goTow(start_crate);
 
-    // Update the hashKey by first undoing original XOR using old position and using new position to XOR
-    // Using the hash/transposition table (ofc)
+    // get where the box should be
+    Coordinate dest_crate = push.dir.goTow(start_crate);
 
     s.hashKey ^= hashTable[start_crate.y][start_crate.x][0];
     s.hashKey ^= hashTable[dest_crate.y][dest_crate.x][0];
@@ -81,22 +81,18 @@ public class SokoBot {
     return s;
   }
 
-  // Finds the shortest path to the destination using AStar and appends the path to the current move list string
+  // Finds the shortest path to the destination using AStar
   public Coordinate AStarPathfinder(Board board, Coordinate startPos, Coordinate destPos, StringBuilder sb) {
-
-    // initiate the closed/frontier and open set
     HashSet<Coordinate> visited = new HashSet<>();
     PriorityQueue<PlayerPath> frontier = new PriorityQueue<>(Comparator.comparingInt(o -> o.f));
 
-    // add the initial starting position to the frontier
-    PlayerPath currPath = new PlayerPath(new ArrayList<Character>(), startPos);
-    currPath.f = currPath.f(destPos);   // don't forget to update the f value!!
-    frontier.add(currPath);
+    PlayerPath initPath = new PlayerPath(new ArrayList<Character>(), startPos);
+    initPath.f = initPath.f(destPos);
+    frontier.add(initPath);
 
     while (!frontier.isEmpty()) {
-      currPath = frontier.poll();
+      PlayerPath currPath = frontier.poll();
 
-      // check if destination
       if (currPath.playerPos.equals(destPos)) {
         for (Character move : currPath.moveList) {
           sb.append(move);
@@ -104,19 +100,15 @@ public class SokoBot {
         return destPos;
       }
 
-      // add to the visited set
       visited.add(currPath.playerPos);
 
-      // go through each directions
       for (Directions dir : Directions.values()) {
+        Coordinate resultPos = new Coordinate(currPath.playerPos.x + dir.x, currPath.playerPos.y + dir.y);
 
-        // get the resulting path and position
-        Coordinate resultPos = dir.goTow(currPath.playerPos);
-        PlayerPath resultPath = new PlayerPath(currPath.moveList, resultPos, dir.getChar());
+        PlayerPath resultPath = new PlayerPath(currPath.moveList, resultPos);
+        resultPath.moveList.add(dir.getChar());
+        resultPath.f = resultPath.f(destPos);
 
-        resultPath.f = resultPath.f(destPos); // don't forget the f value
-
-        // check if out of bounds or if we've already visited it
         if (resultPos.y < 0 || resultPos.x < 0 ||
             resultPos.y >= this.height || resultPos.x >= this.width ||
             board.mapData[resultPos.y][resultPos.x] == BoardValues.WALL.value ||
@@ -127,16 +119,20 @@ public class SokoBot {
 
         if (!frontier.contains(resultPath)) {
           frontier.add(resultPath);
+          continue;
+        }
 
-        } else { // it already exists in the frontier check if we can replace it
-          PlayerPath similarPath = frontier.stream()
-                                  .filter(o -> o.equals(resultPath))
-                                  .findFirst()
-                                  .orElse(null);
-          if (resultPath.f < similarPath.f) {
-            frontier.remove(similarPath);
-            frontier.add(resultPath);
-          }
+        PlayerPath similarPath = frontier.stream()
+                                 .filter(path -> path.equals(resultPath))
+                                 .findFirst()
+                                 .orElse(null);
+        if (similarPath == null) {
+          continue;
+        }
+
+        else if (resultPath.f < similarPath.f) {
+          frontier.remove(similarPath);
+          frontier.add(resultPath);
         }
       }
     }
@@ -392,6 +388,7 @@ public class SokoBot {
 
   public String solveSokobanPuzzle(int width, int height, char[][] mapData, char[][] itemsData) {
     ArrayList<Coordinate> cratePosList = new ArrayList<>();
+    HashSet<Coordinate> TunnelMacroPos = new HashSet<>();
     this.targetPosList = new ArrayList<>();
 
     for (int i = 0; i < height; i++) {
@@ -402,6 +399,13 @@ public class SokoBot {
           this.targetPosList.add(new Coordinate(j, i));
         if (itemsData[i][j] == BoardValues.PLAYER.value)
           this.startPlayerPos = new Coordinate(j, i);
+        for (Directions dir : Directions.values()) {
+          if ((mapData[i][j] == BoardValues.WALL.value && mapData[i+dir.y][j+dir.x] == BoardValues.EMPTY.value && mapData[i+(2*dir.y)][j+(2*dir.x)] == BoardValues.WALL.value) ||
+                  (mapData[i][j] == BoardValues.EMPTY.value && mapData[i+dir.y][j+dir.x] == BoardValues.EMPTY.value && mapData[i+(2*dir.y)][j+(2*dir.x)] == BoardValues.WALL.value) ||
+                  (mapData[i][j] == BoardValues.WALL.value && mapData[i+dir.y][j+dir.x] == BoardValues.EMPTY.value && mapData[i+(2*dir.y)][j+(2*dir.x)] == BoardValues.EMPTY.value)){
+            TunnelMacroPos.add(new Coordinate(j+dir.x, i+dir.y));
+          }
+        }
       }
     }
 
@@ -440,7 +444,7 @@ public class SokoBot {
   }
 
   public static void main (String[] args) {
-    String mapName = "threeboxes1";
+    String mapName = "original1";
 
     FileReader fileReader = new FileReader();
     MapData mapData = fileReader.readFile(mapName);
@@ -486,6 +490,46 @@ public class SokoBot {
     int rows = mapData.rows;
     int columns = mapData.columns;
 
+    HashSet<Coordinate> TunnelMacroPos = new HashSet<>();
+    for (int i = 0; i < rows; i++) {
+      for (int j = 0; j < columns; j++) {
+        for (Directions dir : Directions.values()) {
+          if ((i+(dir.y)>0 && j+(dir.x)>0) && (i+(dir.y)<rows && j+(dir.x)<columns) && (i+(2*dir.y)<rows && j+(2*dir.x)<columns)) {
+            if ((i+(dir.getOpposite().y)>0 && j+(dir.getOpposite().x)>0) && (i+(dir.getOpposite().y)<rows && j+(dir.getOpposite().x)<columns) && (i+(2*dir.getOpposite().y)<rows && j+(2*dir.x)<columns)){
+              if (map[i][j] == BoardValues.WALL.value && map[i + dir.y][j + dir.x] == BoardValues.EMPTY.value && map[i + (2 * dir.y)][j + (2 * dir.x)] == BoardValues.WALL.value) {
+                /*if ((map[i + dir.getOpposite().y][j + dir.getOpposite().x] == BoardValues.WALL.value && map[i + (2 * dir.getOpposite().y)][j + (2 * dir.getOpposite().x)] == BoardValues.WALL.value) ||
+                        (map[i + dir.getOpposite().y][j + dir.getOpposite().x] == BoardValues.EMPTY.value && map[i + (2 * dir.getOpposite().y)][j + (2 * dir.getOpposite().x)] == BoardValues.WALL.value) ||
+                        (map[i + dir.getOpposite().y][j + dir.getOpposite().x] == BoardValues.WALL.value && map[i + (2 * dir.getOpposite().y)][j + (2 * dir.getOpposite().x)] == BoardValues.EMPTY.value)) {*/
+                  if (!TunnelMacroPos.contains(new Coordinate(j + dir.x, i + dir.y))) {
+                    TunnelMacroPos.add(new Coordinate(j + dir.x, i + dir.y));
+                    map[i + dir.y][j + dir.x] = 't';
+                    System.out.println((j + dir.x) + " " + (i + dir.y));
+                  }
+
+              } else if (map[i][j] == BoardValues.EMPTY.value && map[i + dir.y][j + dir.x] == BoardValues.EMPTY.value && map[i + (2 * dir.y)][j + (2 * dir.x)] == BoardValues.WALL.value) {
+                if ((map[i + dir.getOpposite().y][j + dir.getOpposite().x] == BoardValues.WALL.value && map[i + (2 * dir.getOpposite().y)][j + (2 * dir.getOpposite().x)] == BoardValues.WALL.value) ||
+                        (map[i + dir.getOpposite().y][j + dir.getOpposite().x] == BoardValues.WALL.value && map[i + (2 * dir.getOpposite().y)][j + (2 * dir.getOpposite().x)] == BoardValues.EMPTY.value)) {
+                  if (!TunnelMacroPos.contains(new Coordinate(j + dir.x, i + dir.y))) {
+                    TunnelMacroPos.add(new Coordinate(j + dir.x, i + dir.y));
+                    map[i + dir.y][j + dir.x] = 't';
+                    System.out.println((j + dir.x) + " " + (i + dir.y));
+                  }
+
+              } else if (map[i][j] == BoardValues.WALL.value && map[i + dir.y][j + dir.x] == BoardValues.EMPTY.value && map[i + (2 * dir.y)][j + (2 * dir.x)] == BoardValues.EMPTY.value) {
+                /*if ((map[i + dir.getOpposite().y][j + dir.getOpposite().x] == BoardValues.WALL.value && map[i + (2 * dir.getOpposite().y)][j + (2 * dir.getOpposite().x)] == BoardValues.WALL.value) ||
+                        (map[i + dir.getOpposite().y][j + dir.getOpposite().x] == BoardValues.EMPTY.value && map[i + (2 * dir.getOpposite().y)][j + (2 * dir.getOpposite().x)] == BoardValues.WALL.value)) {*/
+                  if (!TunnelMacroPos.contains(new Coordinate(j + dir.x, i + dir.y))) {
+                    TunnelMacroPos.add(new Coordinate(j + dir.x, i + dir.y));
+                    map[i + dir.y][j + dir.x] = 't';
+                    System.out.println((j + dir.x) + " " + (i + dir.y));
+                  }
+
+              }
+            }
+          }
+        }
+      }
+    }
     // ArrayList<Coordinate> cratePosList = new ArrayList<>();
     // ArrayList<Coordinate> targetPosList = new ArrayList<>();
     // Coordinate playerPos = null;
