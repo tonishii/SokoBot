@@ -431,7 +431,7 @@ public class SokoBot {
       currBoard.itemData[currPlayerPos.y][currPlayerPos.x] = BoardValues.PLAYER.value;
       currBoard.itemData[currCratePos.y][currCratePos.x] = BoardValues.CRATE.value;
     }
-    System.out.println(pushList.size());
+
     return sb.toString();
   }
 }
