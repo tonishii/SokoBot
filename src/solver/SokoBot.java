@@ -162,7 +162,7 @@ public class SokoBot {
         int adjX = next.x + dir.x;
 
         // Check if out of bounds or is a wall
-        if (adjY < 0 || adjY < 0 || adjY >= this.height || adjX >= this.width ||
+        if (adjY < 0 || adjX < 0 || adjY >= this.height || adjX >= this.width ||
             board.mapData[adjY][adjX] == BoardValues.WALL.value) {
             continue;
         }
@@ -187,15 +187,14 @@ public class SokoBot {
   }
 
   // Returns if current push/position of a crate is a deadlock
-  public static boolean isDeadlock (int x, int y, char[][] mapData) {
+  public boolean isDeadlock (int x, int y, char[][] mapData) {
     // Not deadlock if already in target
     if (mapData[y][x] == BoardValues.TARGET.value)
       return false;
-      for(Directions dir: Directions.values()) {
-        if(mapData[y + dir.y][x + dir.x] == BoardValues.WALL.value &&
-        mapData[y + dir.getSide().y][x + dir.getSide().x] == BoardValues.WALL.value)
-
-      return true;
+    for(Directions dir: Directions.values()) {
+      if (mapData[y + dir.y][x + dir.x] == BoardValues.WALL.value &&
+              mapData[y + dir.getSide().y][x + dir.getSide().x] == BoardValues.WALL.value)
+        return true;
     }
     return false;
   }
@@ -242,7 +241,7 @@ public class SokoBot {
   }
 
   // Finds the push-optimal soltuion of the current game using
-  // Astar search
+  // Astar search without Zobrist hashing, not used.
   public Node AStar() {
     ReachValues[][] reach = new ReachValues[this.height][this.width];
     PriorityQueue<Node> frontier = new PriorityQueue<>(Comparator.comparingInt(o -> o.f));
@@ -388,7 +387,7 @@ public class SokoBot {
 
   public String solveSokobanPuzzle(int width, int height, char[][] mapData, char[][] itemsData) {
     ArrayList<Coordinate> cratePosList = new ArrayList<>();
-    HashSet<Coordinate> TunnelMacroPos = new HashSet<>();
+    // HashSet<Coordinate> TunnelMacroPos = new HashSet<>();
     this.targetPosList = new ArrayList<>();
 
     for (int i = 0; i < height; i++) {
@@ -399,13 +398,6 @@ public class SokoBot {
           this.targetPosList.add(new Coordinate(j, i));
         if (itemsData[i][j] == BoardValues.PLAYER.value)
           this.startPlayerPos = new Coordinate(j, i);
-        for (Directions dir : Directions.values()) {
-          if ((mapData[i][j] == BoardValues.WALL.value && mapData[i+dir.y][j+dir.x] == BoardValues.EMPTY.value && mapData[i+(2*dir.y)][j+(2*dir.x)] == BoardValues.WALL.value) ||
-                  (mapData[i][j] == BoardValues.EMPTY.value && mapData[i+dir.y][j+dir.x] == BoardValues.EMPTY.value && mapData[i+(2*dir.y)][j+(2*dir.x)] == BoardValues.WALL.value) ||
-                  (mapData[i][j] == BoardValues.WALL.value && mapData[i+dir.y][j+dir.x] == BoardValues.EMPTY.value && mapData[i+(2*dir.y)][j+(2*dir.x)] == BoardValues.EMPTY.value)){
-            TunnelMacroPos.add(new Coordinate(j+dir.x, i+dir.y));
-          }
-        }
       }
     }
 
@@ -439,166 +431,7 @@ public class SokoBot {
       currBoard.itemData[currPlayerPos.y][currPlayerPos.x] = BoardValues.PLAYER.value;
       currBoard.itemData[currCratePos.y][currCratePos.x] = BoardValues.CRATE.value;
     }
-
+    System.out.println(pushList.size());
     return sb.toString();
-  }
-
-  public static void main (String[] args) {
-    String mapName = "original1";
-
-    FileReader fileReader = new FileReader();
-    MapData mapData = fileReader.readFile(mapName);
-
-    char[][] map = new char[mapData.rows][mapData.columns];
-    char[][] items = new char[mapData.rows][mapData.columns];
-
-    for (int i = 0; i < mapData.rows; i++) {
-      for (int j = 0; j < mapData.columns; j++) {
-        switch (mapData.tiles[i][j]) {
-          case '#':
-            map[i][j] = '#';
-            items[i][j] = ' ';
-            break;
-          case '@':
-            map[i][j] = ' ';
-            items[i][j] = '@';
-            break;
-          case '$':
-            map[i][j] = ' ';
-            items[i][j] = '$';
-            break;
-          case '.':
-            map[i][j] = '.';
-            items[i][j] = ' ';
-            break;
-          case '+':
-            map[i][j] = '.';
-            items[i][j] = '@';
-            break;
-          case '*':
-            map[i][j] = '.';
-            items[i][j] = '$';
-            break;
-          case ' ':
-            map[i][j] = ' ';
-            items[i][j] = ' ';
-            break;
-        }
-      }
-    }
-
-    int rows = mapData.rows;
-    int columns = mapData.columns;
-
-    HashSet<Coordinate> TunnelMacroPos = new HashSet<>();
-    for (int i = 0; i < rows; i++) {
-      for (int j = 0; j < columns; j++) {
-        for (Directions dir : Directions.values()) {
-          if ((i+(dir.y)>0 && j+(dir.x)>0) && (i+(dir.y)<rows && j+(dir.x)<columns) && (i+(2*dir.y)<rows && j+(2*dir.x)<columns)) {
-            if ((i+(dir.getOpposite().y)>0 && j+(dir.getOpposite().x)>0) && (i+(dir.getOpposite().y)<rows && j+(dir.getOpposite().x)<columns) && (i+(2*dir.getOpposite().y)<rows && j+(2*dir.x)<columns)){
-              if (map[i][j] == BoardValues.WALL.value && map[i + dir.y][j + dir.x] == BoardValues.EMPTY.value && map[i + (2 * dir.y)][j + (2 * dir.x)] == BoardValues.WALL.value) {
-                /*if ((map[i + dir.getOpposite().y][j + dir.getOpposite().x] == BoardValues.WALL.value && map[i + (2 * dir.getOpposite().y)][j + (2 * dir.getOpposite().x)] == BoardValues.WALL.value) ||
-                        (map[i + dir.getOpposite().y][j + dir.getOpposite().x] == BoardValues.EMPTY.value && map[i + (2 * dir.getOpposite().y)][j + (2 * dir.getOpposite().x)] == BoardValues.WALL.value) ||
-                        (map[i + dir.getOpposite().y][j + dir.getOpposite().x] == BoardValues.WALL.value && map[i + (2 * dir.getOpposite().y)][j + (2 * dir.getOpposite().x)] == BoardValues.EMPTY.value)) {*/
-                  if (!TunnelMacroPos.contains(new Coordinate(j + dir.x, i + dir.y))) {
-                    TunnelMacroPos.add(new Coordinate(j + dir.x, i + dir.y));
-                    map[i + dir.y][j + dir.x] = 't';
-                    System.out.println((j + dir.x) + " " + (i + dir.y));
-                  }
-
-              } else if (map[i][j] == BoardValues.EMPTY.value && map[i + dir.y][j + dir.x] == BoardValues.EMPTY.value && map[i + (2 * dir.y)][j + (2 * dir.x)] == BoardValues.WALL.value) {
-                if ((map[i + dir.getOpposite().y][j + dir.getOpposite().x] == BoardValues.WALL.value && map[i + (2 * dir.getOpposite().y)][j + (2 * dir.getOpposite().x)] == BoardValues.WALL.value) ||
-                        (map[i + dir.getOpposite().y][j + dir.getOpposite().x] == BoardValues.WALL.value && map[i + (2 * dir.getOpposite().y)][j + (2 * dir.getOpposite().x)] == BoardValues.EMPTY.value)) {
-                  if (!TunnelMacroPos.contains(new Coordinate(j + dir.x, i + dir.y))) {
-                    TunnelMacroPos.add(new Coordinate(j + dir.x, i + dir.y));
-                    map[i + dir.y][j + dir.x] = 't';
-                    System.out.println((j + dir.x) + " " + (i + dir.y));
-                  }
-
-              } else if (map[i][j] == BoardValues.WALL.value && map[i + dir.y][j + dir.x] == BoardValues.EMPTY.value && map[i + (2 * dir.y)][j + (2 * dir.x)] == BoardValues.EMPTY.value) {
-                /*if ((map[i + dir.getOpposite().y][j + dir.getOpposite().x] == BoardValues.WALL.value && map[i + (2 * dir.getOpposite().y)][j + (2 * dir.getOpposite().x)] == BoardValues.WALL.value) ||
-                        (map[i + dir.getOpposite().y][j + dir.getOpposite().x] == BoardValues.EMPTY.value && map[i + (2 * dir.getOpposite().y)][j + (2 * dir.getOpposite().x)] == BoardValues.WALL.value)) {*/
-                  if (!TunnelMacroPos.contains(new Coordinate(j + dir.x, i + dir.y))) {
-                    TunnelMacroPos.add(new Coordinate(j + dir.x, i + dir.y));
-                    map[i + dir.y][j + dir.x] = 't';
-                    System.out.println((j + dir.x) + " " + (i + dir.y));
-                  }
-
-              }
-            }
-          }
-        }
-      }
-    }
-    // ArrayList<Coordinate> cratePosList = new ArrayList<>();
-    // ArrayList<Coordinate> targetPosList = new ArrayList<>();
-    // Coordinate playerPos = null;
-
-    // for (int i = 0; i < rows; i++) {
-    //   for (int j = 0; j < columns; j++) {
-    //     if (items[i][j] == BoardValues.CRATE.value)
-    //       cratePosList.add(new Coordinate(j, i));
-    //     if (map[i][j] == BoardValues.TARGET.value)
-    //       targetPosList.add(new Coordinate(j, i));
-    //     if (items[i][j] == BoardValues.PLAYER.value)
-    //       playerPos = new Coordinate(j, i);
-    //   }
-    // }
-
-    // Board board = new Board(map, items, columns, rows);
-    // System.out.println("Current player position: " + playerPos.x + " " + playerPos.y);
-
-    // TESTING ZONE
-    // rows - row of board
-    // columns - col of board
-    // map - mapData of board
-    // items - mapData of board
-    // board - Board of board
-    // initstate - initial state of game
-    // playerPos - initial pos of player
-    // pushList - list of current pushes
-    // cratePosList - list of crate positions
-
-    for (int i = 0; i < rows; i++) {
-      for (int j = 0; j < columns; j++) {
-        System.out.print(map[i][j] + " ");
-      }
-      System.out.println();
-    }
-    // initstate.print();
-
-    // long startTime2 = System.nanoTime();
-    // Node resNode = AStar(initstate, columns, rows, targetPosList);
-    // long endTime2 = System.nanoTime();
-    // System.out.println("Time taken (in ms): " + ((endTime2 - startTime2) / 1000000));
-
-    // StringBuilder sb = new StringBuilder();
-    // Coordinate currPlayerPos = initstate.playerPos;
-    // Board currBoard = board;
-
-    // Node node = resNode;
-    // Push push = resNode.push;
-
-    // while (node != null) {
-    //   // get starting position of crate and player
-    //   System.out.println("Crate: " + (push.crateIndex + 1) + " "+ push.dir + " Pos: " + cratePosList.get(push.crateIndex).toString());
-
-    //   Coordinate destPlayerPos = push.undoPush(cratePosList.get(push.crateIndex));
-    //   System.out.println("DEST: " + destPlayerPos.toString());
-    //   currPlayerPos = solveHelper(currBoard, columns, rows, currPlayerPos, destPlayerPos, sb);
-    //   sb.append(push.dir.getChar());
-
-    //   // set the new coordinate values
-    //   cratePosList.set(push.crateIndex, push.pushCrate(cratePosList.get(push.crateIndex)));
-    //   currPlayerPos = new Coordinate(currPlayerPos.x + push.dir.x, currPlayerPos.y + push.dir.y);
-
-    //   // reflect onto the board
-    //   Coordinate currCratePos = cratePosList.get(push.crateIndex);
-    //   currBoard.itemData[currPlayerPos.y][currPlayerPos.x] = BoardValues.PLAYER.value;
-    //   currBoard.itemData[currCratePos.y][currCratePos.x] = BoardValues.CRATE.value;
-
-    //   node = node.previous;
-    //   push = node.push;
-    // }
   }
 }

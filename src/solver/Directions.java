@@ -32,32 +32,48 @@ enum Directions {
     }
 
     // Returns the character representation of the direction
-    public Character getChar() {
+    public Directions getSide() {
         switch (this) {
             case UP:
-                return 'u';
+                return LEFT;
             case RIGHT:
-                return 'r';
+                return UP;
             case DOWN:
-                return 'd';
+                return RIGHT;
             case LEFT:
-                return 'l';
+                return DOWN;
+            default:
+                return null;
+        }
+    }
+
+    // Returns the character representation of the direction
+    public Directions getOppSide() {
+        switch (this) {
+            case UP:
+                return RIGHT;
+            case RIGHT:
+                return DOWN;
+            case DOWN:
+                return LEFT;
+            case LEFT:
+                return UP;
             default:
                 return null;
         }
     }
 
     // Returns the side of the direction (counter-clockwise)
-    public Directions getSide() {
+    public Character getChar() {
         switch (this) {
             case UP:
-                return LEFT;
+                return 'u';
             case LEFT:
-                return DOWN;
+                return 'l';
             case DOWN:
-                return RIGHT;
+                return 'd';
             case RIGHT:
-                return UP;
+                return 'r';
             default:
                 return null;
         }
