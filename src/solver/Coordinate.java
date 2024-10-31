@@ -2,7 +2,7 @@ package solver;
 
 import java.util.Objects;
 
-// Coordinate determines the position of an Object in the grid
+// Coordinate determines the position of an object in the grid
 public class Coordinate {
     public int x, y;
 

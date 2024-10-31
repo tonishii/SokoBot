@@ -1,7 +1,7 @@
 package solver;
 
 // ReachValues determine which positions/tiles are reachable
-// if a tile is null then not else...
+// if a tile is null then not reachable else...
 enum ReachValues {
     RCRATE(1), // it is a reachable crate
     RSPACE(2); // or a reachable space
