@@ -8,7 +8,8 @@ public class Board {
   public int width;
   public int height;
 
-  public Board() {}
+  public Board() {
+  }
 
   public Board(char[][] mapData, char[][] itemData, int width, int height) {
     this.mapData = mapData;

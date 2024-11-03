@@ -28,7 +28,7 @@ public class NodePath {
     // g is the depth of the current node/size of the current path
     public int f(Coordinate b) {
         return moveList.size() + (Math.abs(playerPos.x - b.x) + Math.abs(playerPos.y - b.y));
-    }                           // ^ Manhattan Distance
+    }
 
     @Override
     public boolean equals(Object o) {

@@ -26,15 +26,15 @@ public class NodeState {
     }
 
     // Returns if current push/position of a crate is a deadlock
-    public static boolean isDeadlock (int x, int y, char[][] mapData) {
+    public boolean isDeadlock (int x, int y, char[][] mapData) {
 
         // Not deadlock if already in target
         if (mapData[y][x] == BoardValues.TARGET.value) {
             return false;
         }
 
+        // Check if it is in a corner
         for (Directions dir : Directions.values()) {
-
             if (mapData[y + dir.y][x + dir.x] == BoardValues.WALL.value &&
                 mapData[y + dir.getSide().y][x + dir.getSide().x] == BoardValues.WALL.value) {
                 return true;
@@ -51,32 +51,32 @@ public class NodeState {
         // Go through every box's positions
         for (Coordinate box : state.cratePosList) {
 
-            // Check if the crate is reachable
+            // Check if the crate is not reachable
             if (reach[box.y][box.x] != ReachValues.RCRATE) {
-            continue;
+                continue;
             }
 
             // Iterate through each directions
             for (Directions dir : Directions.values()) {
-            Directions opp_dir = dir.getOpposite();
+                Directions opp_dir = dir.getOpposite();
 
-            int oppX = box.x + opp_dir.x;
-            int oppY = box.y + opp_dir.y;
+                int oppX = box.x + opp_dir.x;
+                int oppY = box.y + opp_dir.y;
 
-            // Check if nothing is in the way after a push and within reach of the player
-            // Or it is a deadlock state/crate/position
-            if (reach[box.y + dir.y][box.x + dir.x] == ReachValues.RSPACE  &&
-                state.board.itemData[oppY][oppX] != BoardValues.CRATE.value &&
-                state.board.mapData[oppY][oppX] != BoardValues.WALL.value &&
-                !isDeadlock(oppX, oppY, state.board.mapData)) {
-                pushList.add(new Push(state.cratePosList.indexOf(box), opp_dir));
-            }
+                // Check if nothing is in the way after a push and within reach of the player
+                // Or it is a deadlock state/crate/position
+                if (reach[box.y + dir.y][box.x + dir.x] == ReachValues.RSPACE  &&
+                    state.board.itemData[oppY][oppX] != BoardValues.CRATE.value &&
+                    state.board.mapData[oppY][oppX] != BoardValues.WALL.value &&
+                    !isDeadlock(oppX, oppY, state.board.mapData)) {
+                    pushList.add(new Push(state.cratePosList.indexOf(box), opp_dir));
+                }
             }
         }
         return pushList;
     }
 
-    // Checks all the current reachable tiles (RSPACE) and crates (RCRATE) of the current board
+    // Checks all the current reachable tiles/space (RSPACE) and crates (RCRATE) of the current board
     // Explores the each tile in a DFS manner
     public void playerReachablePos(ReachValues[][] reachable) {
         Stack<Coordinate> stack = new Stack<>();
@@ -113,19 +113,16 @@ public class NodeState {
 
             // Check if it is a crate then it's reachable
             if (state.board.itemData[adjY][adjX] == BoardValues.CRATE.value) {
-            reachable[adjY][adjX] = ReachValues.RCRATE;
-            }
-            // else it's just a reachable space
-            else {
-            stack.add(new Coordinate(adjX, adjY));
-            reachable[adjY][adjX] = ReachValues.RSPACE;
+                reachable[adjY][adjX] = ReachValues.RCRATE;
+            } else {
+                // Else it's just a reachable space
+                stack.add(new Coordinate(adjX, adjY));
+                reachable[adjY][adjX] = ReachValues.RSPACE;
             }
         }
         }
     }
 
-    // Returns the f value if the current node
-    // f values indicates the priority in the pq
     // h estimates the least number of pushes it takes to get to the goal state
     // g is the current depth of the node in the tree
     public int f(ArrayList<Coordinate> targetPosList) {
@@ -137,10 +134,11 @@ public class NodeState {
             h += min;
         }
         return depth + h; // hungarian(targetPosList);
-    }
+    }   // Can delete depth for GBFS which is faster
 
     // Our simple lower bound/heuristic currently ignores the fact that each crate has its own "best" position/target
     // Using the hungarian algorithm we can get the most efficient crate-target pair
+    // FOR TESTING ONLY
     public int hungarian(ArrayList<Coordinate> targetPosList) {
         int numObj = targetPosList.size();
 

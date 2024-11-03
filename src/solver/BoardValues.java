@@ -1,6 +1,6 @@
 package solver;
 
-// Determines what object is on a given tile or coordinate
+// Determines what object is on a given tile or coordinate in character representation
 enum BoardValues {
     CRATE('$'),
     EMPTY(' '),

@@ -39,7 +39,7 @@ public class SokoBot {
     return hashTable;
   }
 
-  // Zobrist hash key generator which uses the position of each crate and player position to generate the key
+  // Generates the starting hash key using the position of each crate and the player position
   public long getHashKey(ArrayList<Coordinate> cratePosList) {
     long key = 0;
     for (Coordinate crate : cratePosList) {
@@ -101,6 +101,7 @@ public class SokoBot {
 
       // Check if at the destination
       if (currPath.playerPos.equals(destPos)) {
+        // Append the solution move list to the string builder
         for (Character move : currPath.moveList) {
           sb.append(move);
         }
@@ -112,12 +113,10 @@ public class SokoBot {
 
       // Iterate through all the directions from the current position/path
       for (Directions dir : Directions.values()) {
-
-        // Get the resulting path and position after going towards the direction
+        // Get the position after going towards the direction
         Coordinate resultPos = dir.goTow(currPath.playerPos);
-        NodePath resultPath = new NodePath(currPath.moveList, resultPos, destPos, dir.getChar());
 
-        // Check if out of bounds, an unreachable position, and if already visited
+        // Check if out of bounds, an unreachable position, or if already visited
         if (resultPos.y < 0 || resultPos.x < 0 ||
             resultPos.y >= board.height || resultPos.x >= board.width ||
             board.mapData[resultPos.y][resultPos.x] == BoardValues.WALL.value ||
@@ -126,14 +125,15 @@ public class SokoBot {
             continue;
         }
 
-        // Add to the frontier if it has no similar paths
+        NodePath resultPath = new NodePath(currPath.moveList, resultPos, destPos, dir.getChar());
+
+        // Add to the frontier if it has no similar path/resulting position
         if (!frontier.contains(resultPath)) {
           frontier.add(resultPath);
         } else {
-
           // Check if we can replace the existing path in the frontier
           NodePath similarPath = frontier.stream()
-                                         .filter(path -> path.equals(resultPath))
+                                         .filter(path -> path.equals(resultPath)) // Uses coordinates to compare
                                          .findFirst()
                                          .orElse(null);
           if (resultPath.f < similarPath.f) {
@@ -154,10 +154,11 @@ public class SokoBot {
     HashMap<Long, NodeState> nodeInFrontier = new HashMap<>();
     HashSet<Long> visited = new HashSet<>();
 
-    // Add the initial state to the frontier
+    // Generate the starting hash key
     initState.hashKey = getHashKey(initState.cratePosList);
-    NodeState currNode = new NodeState(initState, null, null, 0, targetPosList);
 
+    // Add the initial state to the frontier
+    NodeState currNode = new NodeState(initState, null, null, 0, targetPosList);
     frontier.add(currNode);
     nodeInFrontier.put(initState.hashKey, currNode);
 
@@ -165,12 +166,12 @@ public class SokoBot {
       currNode = frontier.poll();
       long currKey = currNode.state.hashKey;
 
-      // Check if in game state
+      // Check if in goal state
       if (isEnd(currNode.state)) {
         return currNode;
       }
 
-      // Add to the visited set and node currently in the frontier
+      // Add to the visited set and remove node currently in the frontier
       nodeInFrontier.remove(currKey);
       visited.add(currKey);
 
@@ -179,7 +180,7 @@ public class SokoBot {
       currNode.playerReachablePos(reachable);
 
       // Iterate through all the legal pushes the player can currently do
-      // Legal Pushes = crates that are reachable by the player and can be legally pushed
+      // Legal Pushes = crates that are reachable by the player and can be pushed without any problems
       for (Push push : currNode.getLegalPushes(reachable)) {
 
         // Get the resulting note after pushing the crate
@@ -212,7 +213,7 @@ public class SokoBot {
     return null; // no solution found
   }
 
-  // Adds the list of pushes resulting from the solution node
+  // Adds the solution of pushes to a list resulting from the solution node
   public void getPushList(NodeState node, ArrayList<Push> pushList) {
     if (node.push != null) {
       getPushList(node.previous, pushList);
@@ -221,7 +222,6 @@ public class SokoBot {
   }
 
   public String solveSokobanPuzzle(int width, int height, char[][] mapData, char[][] itemsData) {
-
     // Set up the initial state of the puzzle
     ArrayList<Coordinate> cratePosList = new ArrayList<>();
     targetPosList = new ArrayList<>();
