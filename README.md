@@ -10,6 +10,7 @@ A Java implementation of a Sokoban puzzle solver. It uses the **A\*** search alg
 f(n) = h(n) + g(n)
 
 **h(n)** estimates the least number of pushes it takes to get to the goal state
+
 **g(n)** is the current depth of the node/state in the tree
 
 *Hungarian Algorithm was also tested for performance but not used in the final ver.*
